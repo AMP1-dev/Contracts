@@ -41,6 +41,17 @@ export interface Project {
   // Financeiro e Extras
   valor_consultoria: number | null;
   observacoes: string | null;
+  
+  // Sebrae SOMA Relatório Oficial
+  edital?: string | null;
+  processo_no?: string | null;
+  contrato_no?: string | null;
+  plataforma_utilizada?: string | null;
+  apontamentos_cliente?: string | null;
+  diagnostico_consultor?: string | null;
+  resumo_assuntos?: string | null;
+  encaminhamentos_recomendacoes?: string | null;
+
   dados_extra: any;
 
   criado_em: string;
