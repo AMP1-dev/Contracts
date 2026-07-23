@@ -38,20 +38,19 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        touchAction: 'none',
+      }}
       className={cn(
-        "group relative flex flex-col gap-3 rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:shadow-md hover:border-primary/50",
+        "group relative flex flex-col gap-3 rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:shadow-md hover:border-primary/50 select-none",
         isDragging && "opacity-30 border-primary shadow-xl scale-105",
         isOverlay && "cursor-grabbing opacity-100 shadow-2xl scale-105 rotate-2 border-primary/50 ring-2 ring-primary/20",
-        !isOverlay && "cursor-grab"
+        !isOverlay && "cursor-grab active:cursor-grabbing"
       )}
       {...attributes}
       {...listeners}
-      onPointerDown={() => {
-        // Allow the drag handler to catch the event, but we can still register a click if they let go quickly.
-        // dnd-kit handles this natively via onClick if we just bind it to the div.
-      }}
-      onClick={() => {
+      onClick={(e) => {
         if (!isDragging && onClick) {
           onClick(project);
         }
@@ -61,9 +60,9 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
         <h3 className="font-semibold text-slate-800 text-sm leading-tight line-clamp-2">
           {project.nome_cliente || 'Cliente Sem Nome'}
         </h3>
-        <button className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-slate-600">
+        <div className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity hover:text-slate-600 shrink-0">
           <GripVertical size={16} />
-        </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5 mt-1">
