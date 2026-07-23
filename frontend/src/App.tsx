@@ -46,6 +46,8 @@ function App() {
           smtpUser: 'suporte@amp.ia.br',
           smtpSenderName: 'AMP Consultorias & Gestão',
           smtpUseSSL: true,
+          telegramBotToken: '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo',
+          telegramEnabled: true,
         };
   });
 
