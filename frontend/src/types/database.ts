@@ -64,3 +64,22 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
   { id: 'pagamento_aguardando', title: 'Aguard. Pagamento', color: 'bg-orange-500' },
   { id: 'concluido', title: 'Concluído', color: 'bg-emerald-500' },
 ];
+
+export interface UserSession {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'consultor';
+  createdAt: string;
+  trialStartDate?: string;
+  trialDaysRemaining?: number;
+  plan?: 'mensal' | 'anual' | 'trial';
+}
+
+export interface CompanyConfig {
+  logoUrl: string | null;
+  companyName: string;
+  primaryColor: string;
+  adminEmail: string;
+}
+
