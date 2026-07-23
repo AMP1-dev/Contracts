@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { CompanyConfig, UserSession } from '../types/database';
-import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound } from 'lucide-react';
+import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2 } from 'lucide-react';
 
 interface SettingsPanelProps {
   config: CompanyConfig;
@@ -10,7 +10,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePassword }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription'>('logo');
+  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords'>('logo');
   
   // Logo & Branding state
   const [logoUrl, setLogoUrl] = useState(config.logoUrl || '');
@@ -22,6 +22,37 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
   const [confirmPass, setConfirmPass] = useState('');
   const [passError, setPassError] = useState('');
   const [passSuccess, setPassSuccess] = useState('');
+
+  // PDF Keywords & Sebrae Capture rules state
+  const defaultKeywords = ['RAE', 'Ordem de Serviço', 'Demanda', 'Sebrae', 'CNPJ', 'Valor Consultoria', 'Horas Contratadas', 'Razão Social', 'Solução Contratada'];
+  const [keywords, setKeywords] = useState<string[]>(config.pdfKeywords || defaultKeywords);
+  const [newKeyword, setNewKeyword] = useState('');
+  const [customRules, setCustomRules] = useState(config.pdfCustomRules || 'Capturar prioritariamente o código RAE, CNPJ do cliente e valor total da consultoria nos documentos Sebrae.');
+  const [keywordsSuccessMsg, setKeywordsSuccessMsg] = useState('');
+
+  const handleAddKeyword = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newKeyword.trim();
+    if (trimmed && !keywords.includes(trimmed)) {
+      setKeywords([...keywords, trimmed]);
+      setNewKeyword('');
+    }
+  };
+
+  const handleRemoveKeyword = (kwToRemove: string) => {
+    setKeywords(keywords.filter(k => k !== kwToRemove));
+  };
+
+  const handleSaveKeywords = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateConfig({
+      ...config,
+      pdfKeywords: keywords,
+      pdfCustomRules: customRules,
+    });
+    setKeywordsSuccessMsg('Configurações de palavras-chave e regras de captura salvas!');
+    setTimeout(() => setKeywordsSuccessMsg(''), 3000);
+  };
 
   const handleSaveLogo = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,10 +106,10 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
     <div className="h-full flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden font-sans">
       
       {/* Header Tabs */}
-      <div className="border-b border-slate-200 bg-slate-50/70 px-6 pt-4 flex gap-6">
+      <div className="border-b border-slate-200 bg-slate-50/70 px-6 pt-4 flex gap-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab('logo')}
-          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all ${
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'logo'
               ? 'border-primary text-primary'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -89,8 +120,20 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
         </button>
 
         <button
+          onClick={() => setActiveTab('keywords')}
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'keywords'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <FileText size={18} />
+          <span>Palavras-Chave PDF (Sebrae/Demandas)</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('security')}
-          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all ${
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'security'
               ? 'border-primary text-primary'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -102,7 +145,7 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
 
         <button
           onClick={() => setActiveTab('subscription')}
-          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all ${
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'subscription'
               ? 'border-primary text-primary'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -193,6 +236,98 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
                 >
                   <Save size={16} />
                   <span>Salvar Alterações de Marca</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tab 2: PDF Keywords & Sebrae Demand Capture */}
+        {activeTab === 'keywords' && (
+          <div className="max-w-3xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Palavras-Chave & Regras de Captura PDF</h2>
+              <p className="text-xs text-slate-500">
+                Configure as palavras-chave de identificação e instruções personalizadas que o robô IA utilizará para extrair dados das Ordens de Serviço e Demandas Sebrae.
+              </p>
+            </div>
+
+            {keywordsSuccessMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                <Check size={16} />
+                <span>{keywordsSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Keyword tags manager */}
+            <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Palavras-Chave de Busca no PDF (Sebrae / Contratos)
+              </label>
+
+              <div className="flex flex-wrap gap-2 min-h-[48px] p-3 bg-white border border-slate-200 rounded-xl">
+                {keywords.map((kw) => (
+                  <span
+                    key={kw}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 border border-purple-200 text-purple-700 text-xs font-semibold rounded-lg group"
+                  >
+                    <span>{kw}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveKeyword(kw)}
+                      className="text-purple-400 hover:text-rose-600 transition-colors"
+                      title="Remover palavra-chave"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Add keyword form */}
+              <form onSubmit={handleAddKeyword} className="flex gap-2">
+                <input
+                  type="text"
+                  value={newKeyword}
+                  onChange={(e) => setNewKeyword(e.target.value)}
+                  placeholder="Nova palavra-chave (ex: RAE-2026, Termo de Adesão)"
+                  className="flex-1 bg-white border border-slate-300 rounded-xl px-4 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                />
+                <button
+                  type="submit"
+                  className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus size={14} />
+                  <span>Adicionar Tag</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Custom AI Rules for PDF */}
+            <form onSubmit={handleSaveKeywords} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Instrução Especial de Leitura da IA (Prompt para Sebrae / Demandas)
+                </label>
+                <textarea
+                  rows={3}
+                  value={customRules}
+                  onChange={(e) => setCustomRules(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3.5 text-xs text-slate-800 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  placeholder="Ex: Priorizar extração do número RAE, CNPJ e Valor Total da Ordem de Serviço Sebrae..."
+                ></textarea>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Este procedimento se aplica a você e a todos os consultores associados que utilizam a mesma conta/recurso no Sebrae.
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  <span>Salvar Regras de Captura PDF</span>
                 </button>
               </div>
             </form>

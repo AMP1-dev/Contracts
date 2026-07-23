@@ -95,10 +95,10 @@ export function Inbox() {
           <div>
             <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <Mail className="text-primary" size={20} />
-              Caixa de Entrada (Contratos)
+              Caixa de Entrada (Demandas & Contratos Sebrae)
             </h2>
             <p className="text-sm text-slate-500 mt-1">
-              Ordens de Serviço capturadas automaticamente pelo robô.
+              Ordens de Serviço e Demandas capturadas automaticamente pelo robô IA.
             </p>
           </div>
           <div className="flex gap-2 items-center">

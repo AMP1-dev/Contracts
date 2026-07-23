@@ -81,5 +81,7 @@ export interface CompanyConfig {
   companyName: string;
   primaryColor: string;
   adminEmail: string;
+  pdfKeywords?: string[];
+  pdfCustomRules?: string;
 }
 

@@ -10,8 +10,8 @@ interface LoginProps {
 }
 
 export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: LoginProps) {
-  const [email, setEmail] = useState(adminEmail || 'suporte@amp.ia.br');
-  const [password, setPassword] = useState('1234');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -66,16 +66,7 @@ export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: Lo
             <ShieldCheck size={36} className="text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">CRM Consultorias</h1>
-          <p className="text-sm text-slate-400 mt-1">Acesse sua conta para gerenciar contratos e projetos</p>
-        </div>
-
-        {/* Demo Alert Badge */}
-        <div className="mb-6 p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-start gap-2.5 text-xs text-purple-300">
-          <Sparkles size={16} className="text-purple-400 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold text-purple-200 block">Acesso do Administrador Suporte:</span>
-            E-mail: <code className="bg-purple-950/60 px-1.5 py-0.5 rounded text-purple-200 font-mono">suporte@amp.ia.br</code> | Senha: <code className="bg-purple-950/60 px-1.5 py-0.5 rounded text-purple-200 font-mono">1234</code>
-          </div>
+          <p className="text-sm text-slate-400 mt-1">Gerencie suas demandas de contrato e consultorias</p>
         </div>
 
         {/* Error Alert */}

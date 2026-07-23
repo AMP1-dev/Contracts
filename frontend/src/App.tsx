@@ -38,6 +38,8 @@ function App() {
           companyName: 'CRM Consultorias',
           primaryColor: '#aa3bff',
           adminEmail: 'suporte@amp.ia.br',
+          pdfKeywords: ['RAE', 'Ordem de Serviço', 'Demanda', 'Sebrae', 'CNPJ', 'Valor Consultoria', 'Horas Contratadas', 'Razão Social', 'Solução Contratada'],
+          pdfCustomRules: 'Capturar prioritariamente o código RAE, CNPJ do cliente e valor total da consultoria nos documentos Sebrae.',
         };
   });
 
@@ -97,9 +99,9 @@ function App() {
   const getPageTitle = () => {
     switch (currentView) {
       case 'kanban':
-        return 'Visão Geral - Projetos';
+        return 'Visão Geral - Demandas & Contratos';
       case 'inbox':
-        return 'Caixa de Entrada de Contratos';
+        return 'Caixa de Entrada de Demandas (Sebrae)';
       case 'consultores':
         return 'Gestão de Consultores';
       case 'configuracoes':
