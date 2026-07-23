@@ -102,5 +102,10 @@ export interface CompanyConfig {
   smtpPass?: string;
   smtpSenderName?: string;
   smtpUseSSL?: boolean;
+
+  // Notificações do Telegram Bot
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  telegramEnabled?: boolean;
 }
 

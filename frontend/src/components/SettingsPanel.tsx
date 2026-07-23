@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { CompanyConfig, UserSession } from '../types/database';
-import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server } from 'lucide-react';
+import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server, Send, Bell } from 'lucide-react';
+import { sendTelegramNotification } from '../lib/telegram';
 
 interface SettingsPanelProps {
   config: CompanyConfig;
@@ -10,7 +11,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePassword }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords' | 'smtp'>('logo');
+  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords' | 'smtp' | 'telegram'>('logo');
   
   // Logo & Branding state
   const [logoUrl, setLogoUrl] = useState(config.logoUrl || '');
@@ -39,6 +40,46 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
   const [smtpUseSSL, setSmtpUseSSL] = useState(config.smtpUseSSL ?? true);
   const [smtpSuccessMsg, setSmtpSuccessMsg] = useState('');
 
+  // Telegram Bot State
+  const [telegramBotToken, setTelegramBotToken] = useState(config.telegramBotToken || '');
+  const [telegramChatId, setTelegramChatId] = useState(config.telegramChatId || '');
+  const [telegramEnabled, setTelegramEnabled] = useState(config.telegramEnabled ?? true);
+  const [telegramSuccessMsg, setTelegramSuccessMsg] = useState('');
+  const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+
+  const handleSaveTelegram = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateConfig({
+      ...config,
+      telegramBotToken: telegramBotToken.trim(),
+      telegramChatId: telegramChatId.trim(),
+      telegramEnabled,
+    });
+    setTelegramSuccessMsg('Configurações do Telegram salvas com sucesso!');
+    setTimeout(() => setTelegramSuccessMsg(''), 3000);
+  };
+
+  const handleTestTelegram = async () => {
+    if (!telegramBotToken.trim() || !telegramChatId.trim()) {
+      alert('Preencha o Token do Bot e o Chat ID para enviar o teste.');
+      return;
+    }
+
+    setIsTestingTelegram(true);
+    const ok = await sendTelegramNotification(
+      '<b>🔔 Alerta de Teste do CRM Consultorias Sebrae</b>\n\nConexão com seu Telegram estabelecida com sucesso! Você receberá avisos automáticos de novas demandas por aqui.',
+      telegramBotToken.trim(),
+      telegramChatId.trim()
+    );
+    setIsTestingTelegram(false);
+
+    if (ok) {
+      alert('✅ Notificação enviada com sucesso! Verifique a mensagem no seu Telegram.');
+    } else {
+      alert('❌ Erro ao enviar mensagem no Telegram. Verifique se o Bot Token e Chat ID estão corretos e se você já deu /start no robô.');
+    }
+  };
+
   const handleSaveSmtp = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateConfig({
@@ -51,7 +92,7 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
       smtpUseSSL: smtpUseSSL,
     });
     setSmtpSuccessMsg('Configurações de SMTP do seu domínio salvas com sucesso!');
-    setTimeout(() => setSmtpSuccessMsg(''), 3000);
+    setTimeout(() => setSaveSuccessMsg(''), 3000);
   };
 
   const handleAddKeyword = (e: React.FormEvent) => {
@@ -153,6 +194,18 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
         >
           <Server size={18} />
           <span>SMTP do Domínio (Envio E-mail)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('telegram')}
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'telegram'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Bell size={18} />
+          <span>Telegram (Alertas no Celular)</span>
         </button>
 
         <button
@@ -387,6 +440,97 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
                 >
                   <Save size={16} />
                   <span>Salvar Servidor SMTP do Domínio</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tab 3: Telegram Bot Mobile Alerts */}
+        {activeTab === 'telegram' && (
+          <div className="max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Notificações Automáticas no Celular (Telegram)</h2>
+              <p className="text-xs text-slate-500">
+                Receba alertas de texto instantâneos no seu celular sempre que uma nova demanda Sebrae for capturada pelo robô IA.
+              </p>
+            </div>
+
+            {/* Quick 2-Step Instructions Banner */}
+            <div className="p-4 bg-sky-50 border border-sky-200 rounded-2xl space-y-2 text-xs text-sky-900">
+              <span className="font-bold block text-sky-950">Como configurar seu Robô do Telegram em 2 passos rápidos:</span>
+              <ol className="list-decimal list-inside space-y-1 text-slate-700">
+                <li>Abra o Telegram, busque por <strong>@BotFather</strong>, envie <code className="bg-sky-100 px-1 py-0.5 rounded font-mono">/newbot</code> e copie o <strong>HTTP API Token</strong> gerado.</li>
+                <li>Abra o seu robô no Telegram, clique em <strong>START</strong> (ou mande uma mensagem), e coloque o seu <strong>Chat ID</strong> abaixo.</li>
+              </ol>
+            </div>
+
+            {telegramSuccessMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                <Check size={16} />
+                <span>{telegramSuccessMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTelegram} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Telegram Bot API Token
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={telegramBotToken}
+                  onChange={(e) => setTelegramBotToken(e.target.value)}
+                  placeholder="Ex: 7123456789:AAFx9817hksd928374..."
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Seu Chat ID (ou ID do Grupo de Consultores)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={telegramChatId}
+                  onChange={(e) => setTelegramChatId(e.target.value)}
+                  placeholder="Ex: 123456789 ou -100123456789"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="telegramEnabled"
+                  checked={telegramEnabled}
+                  onChange={(e) => setTelegramEnabled(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 border-slate-300"
+                />
+                <label htmlFor="telegramEnabled" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  Ativar disparo de notificações automáticas ao receber demandas Sebrae
+                </label>
+              </div>
+
+              <div className="pt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="submit"
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  <span>Salvar Configuração do Telegram</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTestTelegram}
+                  disabled={isTestingTelegram}
+                  className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Send size={14} />
+                  <span>{isTestingTelegram ? 'Enviando Alerta...' : 'Enviar Alerta de Teste'}</span>
                 </button>
               </div>
             </form>
