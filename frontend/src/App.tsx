@@ -5,6 +5,7 @@ import { Inbox } from './components/Inbox';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { SettingsPanel } from './components/SettingsPanel';
+import { ConsultantsPanel } from './components/ConsultantsPanel';
 import type { UserSession, CompanyConfig } from './types/database';
 
 type ViewState = 'kanban' | 'inbox' | 'consultores' | 'configuracoes';
@@ -289,8 +290,8 @@ function App() {
             />
           )}
           {currentView === 'consultores' && (
-            <div className="flex h-full items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-white/50 backdrop-blur-sm">
-              Gestão de Consultores - Em breve
+            <div className="h-full overflow-y-auto pb-10 hide-scrollbar">
+              <ConsultantsPanel />
             </div>
           )}
         </div>

@@ -16,6 +16,7 @@ import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { KanbanColumn } from './KanbanColumn';
 import { ProjectCard } from './ProjectCard';
 import { ProjectDetailsPanel } from './ProjectDetailsPanel';
+import { NewProjectModal } from './NewProjectModal';
 import { supabase } from '../lib/supabase';
 import { KANBAN_COLUMNS, type Project, type ProjectStatus } from '../types/database';
 
@@ -249,6 +250,12 @@ export function KanbanBoard() {
     }
   }
 
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+
+  const handleCreateProject = (newProject: Project) => {
+    setProjects([newProject, ...projects]);
+  };
+
   const handleProjectUpdate = (updatedProject: Project) => {
     setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
   };
@@ -262,33 +269,49 @@ export function KanbanBoard() {
   }
 
   return (
-    <>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="flex h-full gap-6 overflow-x-auto pb-4 pt-2 hide-scrollbar">
-          {KANBAN_COLUMNS.map((col) => (
-            <KanbanColumn
-              key={col.id}
-              column={col}
-              projects={projects.filter((p) => p.status === col.id)}
-              onProjectClick={setSelectedProject}
-            />
-          ))}
+    <div className="h-full flex flex-col">
+      {/* Top Action & Search Bar */}
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+          <span>Total de Contratos RAE: <strong>{projects.length}</strong></span>
         </div>
 
-        <DragOverlay>
-          {activeProject ? (
-            <div className="w-80 opacity-90">
-               <ProjectCard project={activeProject} isOverlay />
-            </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+        <button
+          onClick={() => setIsNewModalOpen(true)}
+          className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-1.5"
+        >
+          <span>+ Nova Demanda / Contrato</span>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-hidden">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex h-full gap-6 overflow-x-auto pb-4 pt-2 hide-scrollbar">
+            {KANBAN_COLUMNS.map((col) => (
+              <KanbanColumn
+                key={col.id}
+                column={col}
+                projects={projects.filter((p) => p.status === col.id)}
+                onProjectClick={setSelectedProject}
+              />
+            ))}
+          </div>
+
+          <DragOverlay>
+            {activeProject ? (
+              <div className="w-80 opacity-90">
+                 <ProjectCard project={activeProject} isOverlay />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </div>
 
       <ProjectDetailsPanel 
         project={selectedProject} 
@@ -296,6 +319,12 @@ export function KanbanBoard() {
         onClose={() => setSelectedProject(null)} 
         onUpdate={handleProjectUpdate}
       />
-    </>
+
+      <NewProjectModal
+        isOpen={isNewModalOpen}
+        onClose={() => setIsNewModalOpen(false)}
+        onCreate={handleCreateProject}
+      />
+    </div>
   );
 }
