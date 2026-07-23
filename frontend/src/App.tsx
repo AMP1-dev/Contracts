@@ -41,6 +41,11 @@ function App() {
           adminEmail: 'suporte@amp.ia.br',
           pdfKeywords: ['RAE', 'Ordem de Serviço', 'Demanda', 'Sebrae', 'CNPJ', 'Valor Consultoria', 'Horas Contratadas', 'Razão Social', 'Solução Contratada'],
           pdfCustomRules: 'Capturar prioritariamente o código RAE, CNPJ do cliente e valor total da consultoria nos documentos Sebrae.',
+          smtpHost: 'mail.amp.ia.br',
+          smtpPort: 587,
+          smtpUser: 'suporte@amp.ia.br',
+          smtpSenderName: 'AMP Consultorias & Gestão',
+          smtpUseSSL: true,
         };
   });
 

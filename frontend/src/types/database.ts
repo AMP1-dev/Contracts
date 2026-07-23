@@ -94,5 +94,13 @@ export interface CompanyConfig {
   adminEmail: string;
   pdfKeywords?: string[];
   pdfCustomRules?: string;
+  
+  // Servidor SMTP do Domínio Próprio
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+  smtpSenderName?: string;
+  smtpUseSSL?: boolean;
 }
 

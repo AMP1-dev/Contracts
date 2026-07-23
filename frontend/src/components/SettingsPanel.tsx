@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { CompanyConfig, UserSession } from '../types/database';
-import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2 } from 'lucide-react';
+import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server } from 'lucide-react';
 
 interface SettingsPanelProps {
   config: CompanyConfig;
@@ -10,7 +10,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePassword }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords'>('logo');
+  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords' | 'smtp'>('logo');
   
   // Logo & Branding state
   const [logoUrl, setLogoUrl] = useState(config.logoUrl || '');
@@ -29,6 +29,30 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
   const [newKeyword, setNewKeyword] = useState('');
   const [customRules, setCustomRules] = useState(config.pdfCustomRules || 'Capturar prioritariamente o código RAE, CNPJ do cliente e valor total da consultoria nos documentos Sebrae.');
   const [keywordsSuccessMsg, setKeywordsSuccessMsg] = useState('');
+
+  // Custom Domain SMTP State
+  const [smtpHost, setSmtpHost] = useState(config.smtpHost || 'mail.amp.ia.br');
+  const [smtpPort, setSmtpPort] = useState(config.smtpPort || 587);
+  const [smtpUser, setSmtpUser] = useState(config.smtpUser || 'suporte@amp.ia.br');
+  const [smtpPass, setSmtpPass] = useState(config.smtpPass || '');
+  const [smtpSenderName, setSmtpSenderName] = useState(config.smtpSenderName || 'AMP Consultorias & Gestão');
+  const [smtpUseSSL, setSmtpUseSSL] = useState(config.smtpUseSSL ?? true);
+  const [smtpSuccessMsg, setSmtpSuccessMsg] = useState('');
+
+  const handleSaveSmtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateConfig({
+      ...config,
+      smtpHost: smtpHost.trim(),
+      smtpPort: Number(smtpPort),
+      smtpUser: smtpUser.trim(),
+      smtpPass: smtpPass.trim(),
+      smtpSenderName: smtpSenderName.trim(),
+      smtpUseSSL: smtpUseSSL,
+    });
+    setSmtpSuccessMsg('Configurações de SMTP do seu domínio salvas com sucesso!');
+    setTimeout(() => setSmtpSuccessMsg(''), 3000);
+  };
 
   const handleAddKeyword = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +141,18 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
         >
           <Image size={18} />
           <span>Marca & Logo</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('smtp')}
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'smtp'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Server size={18} />
+          <span>SMTP do Domínio (Envio E-mail)</span>
         </button>
 
         <button
@@ -242,7 +278,122 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
           </div>
         )}
 
-        {/* Tab 2: PDF Keywords & Sebrae Demand Capture */}
+        {/* Tab 2: Custom Domain SMTP Server */}
+        {activeTab === 'smtp' && (
+          <div className="max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Servidor SMTP do Seu Domínio Próprio</h2>
+              <p className="text-xs text-slate-500">
+                Configure os dados do servidor de envio de e-mail do seu próprio domínio (ex: mail.amp.ia.br / cPanel / Webmail / Outlook). O sistema disparará as notificações e os pacotes do Sebrae usando o seu endereço oficial.
+              </p>
+            </div>
+
+            {smtpSuccessMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                <Check size={16} />
+                <span>{smtpSuccessMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveSmtp} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Servidor SMTP (Host)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={smtpHost}
+                    onChange={(e) => setSmtpHost(e.target.value)}
+                    placeholder="mail.amp.ia.br ou smtp.seu-dominio.com.br"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Porta SMTP
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={smtpPort}
+                    onChange={(e) => setSmtpPort(Number(e.target.value))}
+                    placeholder="587 ou 465"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Nome de Exibição do Remetente
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={smtpSenderName}
+                  onChange={(e) => setSmtpSenderName(e.target.value)}
+                  placeholder="Ex: AMP Consultorias - Sebrae"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    E-mail do Remetente (Usuário SMTP)
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={smtpUser}
+                    onChange={(e) => setSmtpUser(e.target.value)}
+                    placeholder="suporte@amp.ia.br"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Senha da Conta de E-mail
+                  </label>
+                  <input
+                    type="password"
+                    value={smtpPass}
+                    onChange={(e) => setSmtpPass(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="useSSL"
+                  checked={smtpUseSSL}
+                  onChange={(e) => setSmtpUseSSL(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 border-slate-300"
+                />
+                <label htmlFor="useSSL" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  Utilizar conexão segura SSL / TLS (Recomendado para porta 465 ou 587)
+                </label>
+              </div>
+
+              <div className="pt-3">
+                <button
+                  type="submit"
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  <span>Salvar Servidor SMTP do Domínio</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tab 3: PDF Keywords & Sebrae Demand Capture */}
         {activeTab === 'keywords' && (
           <div className="max-w-3xl space-y-6">
             <div>
