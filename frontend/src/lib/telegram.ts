@@ -5,13 +5,13 @@ export async function sendTelegramNotification(
   message: string,
   botToken?: string,
   chatId?: string
-): Promise<boolean> {
-  const token = botToken || '7123456789:AAFx...';
-  const targetChat = chatId || '';
+): Promise<{ ok: boolean; description?: string }> {
+  const token = (botToken && botToken.trim()) || '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo';
+  const targetChat = (chatId && chatId.trim()) || '';
 
-  if (!token || !targetChat) {
-    console.warn('Telegram token or chatId not configured');
-    return false;
+  if (!targetChat) {
+    console.warn('Telegram chatId not configured');
+    return { ok: false, description: 'Chat ID não configurado.' };
   }
 
   try {
@@ -28,9 +28,13 @@ export async function sendTelegramNotification(
     });
 
     const data = await response.json();
-    return data.ok === true;
-  } catch (error) {
+    if (!data.ok) {
+      console.error('Telegram API Response Error:', data);
+      return { ok: false, description: data.description || 'Erro na API do Telegram.' };
+    }
+    return { ok: true };
+  } catch (error: any) {
     console.error('Error sending Telegram notification:', error);
-    return false;
+    return { ok: false, description: error.message || String(error) };
   }
 }

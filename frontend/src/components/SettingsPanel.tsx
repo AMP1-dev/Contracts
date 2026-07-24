@@ -60,23 +60,23 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
   };
 
   const handleTestTelegram = async () => {
-    if (!telegramBotToken.trim() || !telegramChatId.trim()) {
-      alert('Preencha o Token do Bot e o Chat ID para enviar o teste.');
+    if (!telegramChatId.trim()) {
+      alert('Por favor, digite o seu Chat ID no campo para enviar o teste.');
       return;
     }
 
     setIsTestingTelegram(true);
-    const ok = await sendTelegramNotification(
+    const result = await sendTelegramNotification(
       '<b>🔔 Alerta de Teste do CRM Consultorias Sebrae</b>\n\nConexão com seu Telegram estabelecida com sucesso! Você receberá avisos automáticos de novas demandas por aqui.',
       telegramBotToken.trim(),
       telegramChatId.trim()
     );
     setIsTestingTelegram(false);
 
-    if (ok) {
+    if (result.ok) {
       alert('✅ Notificação enviada com sucesso! Verifique a mensagem no seu Telegram.');
     } else {
-      alert('❌ Erro ao enviar mensagem no Telegram. Verifique se o Bot Token e Chat ID estão corretos e se você já deu /start no robô.');
+      alert(`❌ Não foi possível enviar no Telegram:\n${result.description || 'Erro desconhecido'}\n\nDICA: Certifique-se de ter clicado em START no robô @AMPdemanda_bot e que seu Chat ID esteja correto.`);
     }
   };
 
