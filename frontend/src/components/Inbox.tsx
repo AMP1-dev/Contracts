@@ -149,23 +149,23 @@ export function Inbox() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         
         {/* Inbox Header */}
-        <div className="border-b border-slate-200 bg-slate-50/50 p-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-              <Mail className="text-primary" size={20} />
-              Caixa de Entrada (Demandas & Contratos Sebrae)
+        <div className="border-b border-slate-200 bg-slate-50/50 p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2 truncate">
+              <Mail className="text-primary shrink-0" size={20} />
+              <span>Caixa de Entrada (Demandas & Contratos Sebrae)</span>
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Ordens de Serviço e Demandas capturadas automaticamente pelo robô IA.
             </p>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center shrink-0 w-full sm:w-auto justify-between sm:justify-end">
             <span className="bg-white border border-slate-200 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm">
               {emails.filter(e => e.status === 'recebido').length} Pendentes
             </span>
             <button 
               onClick={handleSyncEmails}
-              className="bg-primary text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary-hover transition-colors flex items-center gap-1.5"
+              className="bg-primary text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm hover:bg-primary-hover transition-colors flex items-center gap-1.5 shrink-0"
             >
               <Clock size={14} /> Sincronizar Agora
             </button>

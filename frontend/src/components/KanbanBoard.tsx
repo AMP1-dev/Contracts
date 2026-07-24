@@ -257,6 +257,12 @@ export function KanbanBoard() {
     );
   }
 
+  const handleWheel = (e: React.WheelEvent) => {
+    if (scrollRef.current && Math.abs(e.deltaY) > 0) {
+      scrollRef.current.scrollLeft += e.deltaY * 1.5;
+    }
+  };
+
   return (
     <div className="h-full flex flex-col w-full max-w-full overflow-hidden">
       
@@ -322,7 +328,7 @@ export function KanbanBoard() {
         </div>
       </div>
 
-      {/* Kanban Board Container with Touch Scroll & Visible Horizontal Scrollbar */}
+      {/* Kanban Board Container with Touch Scroll & Mouse Wheel Horizontal Scroll */}
       <div className="flex-1 overflow-hidden relative">
         <DndContext
           sensors={sensors}
@@ -333,6 +339,7 @@ export function KanbanBoard() {
         >
           <div
             ref={scrollRef}
+            onWheel={handleWheel}
             className="flex h-full gap-5 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scroll-smooth w-full"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
