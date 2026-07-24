@@ -42,7 +42,7 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
 
   // Telegram Bot State
   const [telegramBotToken, setTelegramBotToken] = useState(config.telegramBotToken || '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo');
-  const [telegramChatId, setTelegramChatId] = useState(config.telegramChatId || '');
+  const [telegramChatId, setTelegramChatId] = useState(config.telegramChatId || '1715550729');
   const [telegramEnabled, setTelegramEnabled] = useState(config.telegramEnabled ?? true);
   const [telegramSuccessMsg, setTelegramSuccessMsg] = useState('');
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
