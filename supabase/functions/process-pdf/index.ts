@@ -94,7 +94,7 @@ Campos desejados no JSON:
 - "valor_consultoria": (number) Valor total monetário. Retorne apenas o número (ex: 5000.50).
 `;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     
     const geminiResponse = await fetch(geminiUrl, {
       method: 'POST',
