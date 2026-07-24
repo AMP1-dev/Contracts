@@ -266,7 +266,7 @@ export function KanbanBoard() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Top Action & Search Bar */}
+      {/* Top Action Bar */}
       <div className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
           <span>Total de Contratos RAE: <strong>{projects.length}</strong></span>
@@ -274,7 +274,7 @@ export function KanbanBoard() {
 
         <button
           onClick={() => setIsNewModalOpen(true)}
-          className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-1.5"
+          className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-1.5 shrink-0"
         >
           <span>+ Nova Demanda / Contrato</span>
         </button>
