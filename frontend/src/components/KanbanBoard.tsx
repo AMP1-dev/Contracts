@@ -119,11 +119,16 @@ export function KanbanBoard() {
   const [loading, setLoading] = useState(true);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    async function fetchProjects() {
       try {
         const { data, error } = await supabase
           .from('projetos')
           .select('*')
-          .order('atualizado_em', { ascending: false });
+          .order('criado_em', { ascending: false });
 
         if (!error && data && data.length > 0) {
           setProjects(data as Project[]);
@@ -137,7 +142,7 @@ export function KanbanBoard() {
         setLoading(false);
       }
     }
-    loadProjects();
+    fetchProjects();
   }, []);
 
   const sensors = useSensors(
