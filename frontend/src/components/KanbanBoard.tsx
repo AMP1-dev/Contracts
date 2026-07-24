@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, Plus } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -98,15 +99,15 @@ const DEMO_PROJECTS: Project[] = [
     estado: 'SP',
     endereco: 'Rod. Anhanguera, Km 302',
     programa: 'Sebraetec',
-    solucao_contratada: 'Desenvolvimento de Marca e Registro de Patente',
-    objetivo_atendimento: 'Adequação visual e proteção de ativos tecnológicos',
+    solucao_contratada: 'Inovação e Mapeamento Tecnológico',
+    objetivo_atendimento: 'Implementação de processos automatizados no campo',
     horas_contratadas: 40,
     horas_realizadas: 40,
-    data_prevista_inicio: '2026-07-01',
-    data_prevista_fim: '2026-07-20',
-    modalidade: 'Online',
-    valor_consultoria: 5800,
-    observacoes: 'Atendimento concluído, elaborando relatório final',
+    data_prevista_inicio: '2026-07-10',
+    data_prevista_fim: '2026-07-22',
+    modalidade: 'Presencial',
+    valor_consultoria: 6800,
+    observacoes: 'Atendimento presencial concluído',
     dados_extra: {},
     criado_em: new Date().toISOString(),
     atualizado_em: new Date().toISOString(),
@@ -115,14 +116,9 @@ const DEMO_PROJECTS: Project[] = [
 
 export function KanbanBoard() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Load projects from Supabase (with fallback demo data)
-  useEffect(() => {
-    async function loadProjects() {
-      setLoading(true);
       try {
         const { data, error } = await supabase
           .from('projetos')

@@ -143,12 +143,21 @@ function App() {
 
   // Authenticated Dashboard Layout
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-800 w-full overflow-x-hidden">
+      
+      {/* Mobile Drawer Overlay Backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 md:hidden transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`bg-white border-r border-slate-200 transition-all duration-300 ${
-          isSidebarOpen ? 'w-64' : 'w-20'
-        } flex flex-col h-screen sticky top-0 z-20`}
+          isSidebarOpen ? 'w-64 translate-x-0' : '-translate-x-full md:translate-x-0 md:w-20'
+        } flex flex-col h-screen fixed md:sticky top-0 left-0 z-40 shadow-xl md:shadow-none`}
       >
         <div className="h-16 flex items-center px-4 border-b border-slate-200 justify-between bg-white">
           {isSidebarOpen ? (
@@ -164,7 +173,7 @@ function App() {
                   <ShieldCheck size={18} className="text-primary" />
                 </div>
               )}
-              <span className="font-bold text-base text-slate-900 truncate tracking-tight">
+              <span className="font-bold text-sm sm:text-base text-slate-900 truncate tracking-tight">
                 {companyConfig.companyName}
               </span>
             </div>
@@ -189,20 +198,26 @@ function App() {
           </button>
         </div>
 
-        <nav className="flex-1 py-6 flex flex-col gap-1.5 px-3">
+        <nav className="flex-1 py-6 flex flex-col gap-1.5 px-3 overflow-y-auto">
           <SidebarItem
             icon={<LayoutDashboard size={20} />}
             label="Kanban"
             isOpen={isSidebarOpen}
             active={currentView === 'kanban'}
-            onClick={() => setCurrentView('kanban')}
+            onClick={() => {
+              setCurrentView('kanban');
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
+            }}
           />
           <SidebarItem
             icon={<InboxIcon size={20} />}
             label="Caixa de Entrada"
             isOpen={isSidebarOpen}
             active={currentView === 'inbox'}
-            onClick={() => setCurrentView('inbox')}
+            onClick={() => {
+              setCurrentView('inbox');
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
+            }}
             badge="Novo"
           />
 
@@ -213,14 +228,20 @@ function App() {
             label="Consultores"
             isOpen={isSidebarOpen}
             active={currentView === 'consultores'}
-            onClick={() => setCurrentView('consultores')}
+            onClick={() => {
+              setCurrentView('consultores');
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
+            }}
           />
           <SidebarItem
             icon={<Settings size={20} />}
             label="Configurações"
             isOpen={isSidebarOpen}
             active={currentView === 'configuracoes'}
-            onClick={() => setCurrentView('configuracoes')}
+            onClick={() => {
+              setCurrentView('configuracoes');
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
+            }}
           />
         </nav>
 
@@ -256,30 +277,40 @@ function App() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50/50">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-xs z-10">
-          <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-            {getPageTitle()}
-          </h1>
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50/50 min-w-0 w-full">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 shadow-xs z-10 gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 md:hidden transition-colors shrink-0"
+              title="Abrir Menu"
+            >
+              <Menu size={20} />
+            </button>
+
+            <h1 className="text-sm sm:text-lg md:text-xl font-bold text-slate-800 tracking-tight truncate">
+              {getPageTitle()}
+            </h1>
+          </div>
 
           {/* Trial & User Quick Status Badge */}
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-primary border border-purple-200 text-xs font-bold rounded-full">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-primary border border-purple-200 text-xs font-bold rounded-full">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span>Teste Grátis (40 dias)</span>
             </span>
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors border border-slate-200"
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors border border-slate-200 shrink-0"
             >
               <LogOut size={14} />
-              <span>Sair</span>
+              <span className="hidden sm:inline">Sair</span>
             </button>
           </div>
         </header>
 
-        <div className="flex-1 p-6 md:p-8 overflow-hidden flex flex-col relative">
+        <div className="flex-1 p-3 sm:p-6 md:p-8 overflow-hidden flex flex-col relative w-full max-w-full">
           {/* Subtle background decoration */}
           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
 
