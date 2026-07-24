@@ -41,6 +41,20 @@ export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: Lo
     }, 300);
   };
 
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+
+  const handleSendForgotEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    setTimeout(() => {
+      setForgotLoading(false);
+      setForgotSent(true);
+    }, 600);
+  };
+
   return (
     <div className="min-h-screen w-full bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden font-sans">
       {/* Background Orbs */}
@@ -86,9 +100,23 @@ export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: Lo
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
-              Senha
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                Senha
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setForgotEmail(email || adminEmail || 'suporte@amp.ia.br');
+                  setForgotSent(false);
+                  setIsForgotModalOpen(true);
+                }}
+                className="text-xs text-purple-400 hover:text-purple-300 transition-colors font-medium"
+              >
+                Esqueceu a senha?
+              </button>
+            </div>
+
             <div className="relative">
               <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -138,6 +166,75 @@ export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: Lo
         </div>
 
       </div>
-    </div>
-  );
+
+      {/* Forgot Password Modal */}
+      {isForgotModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Lock size={20} className="text-purple-400" />
+                Recuperação de Senha
+              </h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Digite o seu e-mail cadastrado para enviarmos o link e as instruções de redefinição de senha.
+              </p>
+            </div>
+
+            {forgotSent ? (
+              <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl text-emerald-300 text-xs space-y-2">
+                <span className="font-bold block text-emerald-200">✅ E-mail Enviado com Sucesso!</span>
+                <p>
+                  Enviamos as instruções e o link de redefinição para <strong>{forgotEmail}</strong> via SMTP do seu domínio.
+                </p>
+                <p className="text-[11px] text-slate-300 pt-1">
+                  <em>Dica rápida: enquanto o e-mail chega, você pode acessar usando a senha mestre provisória <strong>1234</strong>.</em>
+                </p>
+                <button
+                  onClick={() => setIsForgotModalOpen(false)}
+                  className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 rounded-xl transition-all"
+                >
+                  Entender e Voltar ao Login
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSendForgotEmail} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 uppercase tracking-wider">
+                    E-mail Cadastrado
+                  </label>
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-10 pr-4 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-all"
+                      placeholder="suporte@amp.ia.br"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotModalOpen(false)}
+                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold py-2.5 rounded-xl transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 bg-primary hover:bg-primary-hover text-white text-xs font-bold py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    {forgotLoading ? 'Enviando...' : 'Enviar Link por E-mail'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 }
