@@ -224,14 +224,8 @@ export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: Lo
                   >
                     Cancelar
                   </button>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading}
-                    className="flex-1 bg-primary hover:bg-primary-hover text-white text-xs font-bold py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    {forgotLoading ? 'Enviando...' : 'Enviar Link por E-mail'}
-                  </button>
                 </div>
+              </form>
             )}
           </div>
         </div>
