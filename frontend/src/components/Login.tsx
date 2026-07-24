@@ -232,9 +232,10 @@ export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: Lo
                     {forgotLoading ? 'Enviando...' : 'Enviar Link por E-mail'}
                   </button>
                 </div>
-              </form>
             )}
           </div>
         </div>
       )}
+    </div>
+  );
 }
