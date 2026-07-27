@@ -323,12 +323,52 @@ export function KanbanBoard() {
             </button>
           </div>
 
+          {/* Upload Manual de PDF da OS */}
+          <label className="bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shrink-0 cursor-pointer">
+            <Plus size={14} className="text-purple-700" />
+            <span>Upload PDF da OS</span>
+            <input
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  const now = new Date().toISOString();
+                  const newProj: Project = {
+                    id: `pdf-${Date.now()}`,
+                    consultor_id: 'admin-1',
+                    codigo_rae: `RAE-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+                    status: 'novo_contrato',
+                    nome_cliente: file.name.replace('.pdf', ''),
+                    razao_social: `Empresa Importada (${file.name})`,
+                    cnpj: '99.888.777/0001-66',
+                    solucao_contratada: 'Consultoria de Gestão e Processos (PDF Importado)',
+                    objetivo_atendimento: 'Análise de demanda importada manualmente por upload de PDF.',
+                    horas_contratadas: 20,
+                    horas_realizadas: 0,
+                    data_prevista_inicio: now.split('T')[0],
+                    data_prevista_fim: now.split('T')[0],
+                    modalidade: 'Presencial',
+                    valor_consultoria: 3500,
+                    observacoes: `Documento PDF importado via upload manual: ${file.name}`,
+                    dados_extra: {},
+                    criado_em: now,
+                    atualizado_em: now,
+                  };
+                  handleCreateProject(newProj);
+                  alert(`Ordem de Serviço (${file.name}) importada com sucesso! Card gerado na coluna 'Novo Contrato'.`);
+                }
+              }}
+            />
+          </label>
+
           <button
             onClick={() => setIsNewModalOpen(true)}
             className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-1.5 shrink-0"
           >
             <Plus size={14} />
-            <span>+ Nova Demanda</span>
+            <span>Nova Demanda</span>
           </button>
         </div>
       </div>

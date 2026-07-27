@@ -27,6 +27,38 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate }: Proj
     }
   }, [project]);
 
+  // Support Ctrl+V paste of WhatsApp screenshot directly anywhere in panel
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          if (blob) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setFormData((prev) => ({
+                ...prev,
+                dados_extra: {
+                  ...prev.dados_extra,
+                  foto_cliente: reader.result as string,
+                }
+              }));
+            };
+            reader.readAsDataURL(blob);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [isOpen]);
+
   if (!project) return null;
 
   const handleChange = (field: keyof Project, value: any) => {
@@ -536,19 +568,57 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate }: Proj
               </p>
             </div>
 
-            {/* Foto do Atendimento */}
-            <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <span className="text-xs font-bold text-slate-800 block">1. Foto do Atendimento / Print de Tela:</span>
-                <span className="text-[11px] text-slate-500">
-                  {formData.dados_extra?.foto_cliente ? '✅ Foto anexa ao relatório SOMA' : 'Nenhuma foto anexada'}
-                </span>
+            {/* Foto do Atendimento / Print do WhatsApp (Suporta Ctrl+V, Arrastar e Upload) */}
+            <div className="p-4 bg-white rounded-2xl border-2 border-dashed border-purple-200 hover:border-purple-400 transition-colors space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-extrabold text-slate-900 block flex items-center gap-1.5">
+                    <Camera size={15} className="text-primary" />
+                    <span>1. Print da Conversa do WhatsApp / Comprovante de Atendimento</span>
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    Insira a imagem de comprovação que será anexada ao relatório SOMA oficial.
+                  </span>
+                </div>
+
+                <label className="bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer transition-colors shrink-0 flex items-center gap-1.5">
+                  <Camera size={14} />
+                  <span>{formData.dados_extra?.foto_cliente ? 'Alterar Imagem' : 'Selecionar Arquivo'}</span>
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                </label>
               </div>
-              <label className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg cursor-pointer transition-colors shrink-0 flex items-center gap-1.5">
-                <Camera size={14} />
-                <span>{formData.dados_extra?.foto_cliente ? 'Alterar Foto' : 'Anexar Foto'}</span>
-                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-              </label>
+
+              {formData.dados_extra?.foto_cliente ? (
+                <div className="flex items-center gap-3 bg-purple-50 p-2.5 rounded-xl border border-purple-200">
+                  <img
+                    src={formData.dados_extra.foto_cliente}
+                    alt="Preview WhatsApp Print"
+                    className="w-16 h-16 object-cover rounded-lg border border-purple-300 shadow-xs shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-bold text-purple-950 block">✅ Print do WhatsApp Anexado!</span>
+                    <p className="text-[11px] text-purple-800">
+                      Esta imagem será posicionada ao final do relatório oficial SOMA para auditoria.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, dados_extra: { ...prev.dados_extra, foto_cliente: null } }))}
+                    className="text-xs font-bold text-rose-600 hover:underline px-2 py-1"
+                  >
+                    Remover
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center space-y-1">
+                  <p className="text-xs font-bold text-slate-700">
+                    💡 Dica: Cole com <kbd className="bg-white border border-slate-300 px-1.5 py-0.5 rounded text-[10px] font-mono text-purple-700 font-black">Ctrl + V</kbd> a captura de tela do WhatsApp!
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    Você pode copiar o print da tela no Windows (Win + Shift + S) e colar diretamente nesta janela.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Gerar Documento Oficial SOMA */}

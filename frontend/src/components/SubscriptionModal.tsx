@@ -90,27 +90,46 @@ export function SubscriptionModal({ session, onClose, onUpdateSession }: Subscri
 
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           
-          {/* Active Plan Overview Card */}
-          <div className="bg-gradient-to-br from-slate-900 to-purple-950 text-white rounded-2xl p-5 border border-purple-800/40 shadow-xl relative overflow-hidden">
+          {/* Active Plan & Plan Selection Overview Card */}
+          <div className="bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 text-white rounded-2xl p-5 border border-purple-800/40 shadow-xl relative overflow-hidden space-y-4">
             <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold rounded-md mb-2">
-                  <Sparkles size={12} />
-                  <span>Plano Promocional 1º Ano Ativo</span>
-                </div>
-                <h3 className="text-xl font-black">R$ 49,90 <span className="text-xs font-normal text-purple-200">/ mês</span></h3>
-                <p className="text-xs text-slate-300 mt-1">
-                  Desconto de 50% aplicado (De <span className="line-through">R$ 99,90</span> por R$ 49,90/mês nos 12 primeiros meses).
-                </p>
+            <div className="flex items-center justify-between border-b border-purple-800/60 pb-3">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold rounded-md">
+                <Sparkles size={12} />
+                <span>30 Dias Grátis Ativos + Escolha a Modalidade</span>
+              </div>
+              <span className="text-xs text-purple-300 font-semibold">Sem compromisso nos primeiros 30 dias</span>
+            </div>
+
+            {/* Plan Cards Comparison */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              
+              {/* Option 1: Plano Básico (R$ 19,90/mês) */}
+              <div className="bg-slate-900/80 border border-purple-500/40 p-4 rounded-xl space-y-2 relative">
+                <span className="text-[10px] font-extrabold text-purple-300 uppercase tracking-wider block">Plano Básico (Baixo Volume)</span>
+                <h4 className="text-2xl font-black text-white">R$ 19,90 <span className="text-xs font-normal text-slate-400">/mês no 1º Ano</span></h4>
+                <ul className="text-[11px] text-slate-300 space-y-1 pt-1">
+                  <li>• <strong>Até 5 OSs (PDFs)</strong> mensais</li>
+                  <li>• Até 5 clientes por Ordem de Serviço</li>
+                  <li>• Leitura de PDFs por IA e Kanban</li>
+                </ul>
               </div>
 
-              <div className="text-left sm:text-right border-t sm:border-t-0 sm:border-l border-purple-800/60 pt-3 sm:pt-0 sm:pl-6 shrink-0">
-                <span className="text-[11px] text-slate-400 block font-medium">Economia Total Garantida</span>
-                <span className="text-lg font-black text-emerald-400">R$ 600,00 / ano</span>
-                <span className="text-[10px] text-slate-400 block mt-0.5">Renovação no 2º ano por R$ 99,90/mês</span>
+              {/* Option 2: Plano Profissional (R$ 49,90/mês) */}
+              <div className="bg-purple-900/40 border-2 border-purple-400 p-4 rounded-xl space-y-2 relative shadow-lg">
+                <span className="absolute -top-2.5 right-3 bg-emerald-500 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full uppercase">
+                  Recomendado
+                </span>
+                <span className="text-[10px] font-extrabold text-emerald-300 uppercase tracking-wider block">Plano Profissional (Ilimitado)</span>
+                <h4 className="text-2xl font-black text-white">R$ 49,90 <span className="text-xs font-normal text-slate-300">/mês no 1º Ano</span></h4>
+                <ul className="text-[11px] text-purple-100 space-y-1 pt-1">
+                  <li>• <strong>Demandas & OSs Ilimitadas</strong></li>
+                  <li>• Clientes ilimitados por Ordem de Serviço</li>
+                  <li>• Suporte prioritário e robô IA ilimitado</li>
+                </ul>
               </div>
+
             </div>
           </div>
 
