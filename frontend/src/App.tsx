@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, Settings, Inbox as InboxIcon, Menu, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, Inbox as InboxIcon, Menu, LogOut, User as UserIcon, ShieldCheck, CreditCard } from 'lucide-react';
 import { KanbanBoard } from './components/KanbanBoard';
 import { Inbox } from './components/Inbox';
 import { Login } from './components/Login';
 import { Register } from './components/Register';
 import { SettingsPanel } from './components/SettingsPanel';
 import { ConsultantsPanel } from './components/ConsultantsPanel';
+import { TermsModal } from './components/TermsModal';
+import { SubscriptionModal } from './components/SubscriptionModal';
+import { SuspendedAccessModal } from './components/SuspendedAccessModal';
 import type { UserSession, CompanyConfig } from './types/database';
 
 type ViewState = 'kanban' | 'inbox' | 'consultores' | 'configuracoes';
@@ -14,6 +17,7 @@ type AuthState = 'authenticated' | 'login' | 'register';
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentView, setCurrentView] = useState<ViewState>('kanban');
+  const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
 
   // Auth & Storage state
   const [authState, setAuthState] = useState<AuthState>(() => {
@@ -141,10 +145,49 @@ function App() {
     );
   }
 
-  // Authenticated Dashboard Layout
+  const handleAcceptTerms = () => {
+    if (!session) return;
+    const updated: UserSession = {
+      ...session,
+      termsAccepted: true,
+      termsAcceptedAt: new Date().toISOString(),
+      subscriptionStatus: 'ativo',
+    };
+    setSession(updated);
+  };
+
+  const handleUpdateSession = (updatedSession: UserSession) => {
+    setSession(updatedSession);
+  };
+
+  {/* Header Subscription & Quick Status Badge */}
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-800 w-full overflow-x-hidden">
       
+      {/* Pop-up de Aceite de Termos no 1º Acesso */}
+      {session && !session.termsAccepted && (
+        <TermsModal session={session} onAcceptTerms={handleAcceptTerms} />
+      )}
+
+      {/* Pop-up de Acesso Suspenso por Inadimplência */}
+      {session && session.subscriptionStatus === 'suspenso' && (
+        <SuspendedAccessModal
+          session={session}
+          onReactivateAccess={() => {
+            handleUpdateSession({ ...session, subscriptionStatus: 'ativo' });
+          }}
+        />
+      )}
+
+      {/* Modal de Gestão de Assinatura & Boletos */}
+      {isSubscriptionOpen && session && (
+        <SubscriptionModal
+          session={session}
+          onClose={() => setIsSubscriptionOpen(false)}
+          onUpdateSession={handleUpdateSession}
+        />
+      )}
+
       {/* Mobile Drawer Overlay Backdrop */}
       {isSidebarOpen && (
         <div
@@ -243,6 +286,17 @@ function App() {
               if (window.innerWidth < 768) setIsSidebarOpen(false);
             }}
           />
+          <SidebarItem
+            icon={<CreditCard size={20} />}
+            label="Minha Assinatura"
+            isOpen={isSidebarOpen}
+            active={false}
+            onClick={() => {
+              setIsSubscriptionOpen(true);
+              if (window.innerWidth < 768) setIsSidebarOpen(false);
+            }}
+            badge="R$ 49,90"
+          />
         </nav>
 
         {/* User Footer in Sidebar */}
@@ -293,12 +347,15 @@ function App() {
             </h1>
           </div>
 
-          {/* Trial & User Quick Status Badge */}
+          {/* Subscription & User Quick Status Badge */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 text-primary border border-purple-200 text-xs font-bold rounded-full">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>Teste Grátis (40 dias)</span>
-            </span>
+            <button
+              onClick={() => setIsSubscriptionOpen(true)}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-purple-50 hover:bg-purple-100 text-primary border border-purple-200 text-xs font-bold rounded-full transition-colors cursor-pointer"
+            >
+              <CreditCard size={14} />
+              <span>1º Ano Promocional (R$ 49,90/mês)</span>
+            </button>
 
             <button
               onClick={handleLogout}

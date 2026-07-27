@@ -76,15 +76,28 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
   { id: 'concluido', title: 'Concluído', color: 'bg-emerald-500' },
 ];
 
+export interface BoletoItem {
+  numeroParcela: number;
+  vencimento: string;
+  valor: number;
+  status: 'pago' | 'pendente' | 'atrasado';
+  linhaDigitavel?: string;
+}
+
 export interface UserSession {
   id: string;
   email: string;
   name: string;
+  companyName?: string;
   role: 'admin' | 'consultor';
   createdAt: string;
-  trialStartDate?: string;
-  trialDaysRemaining?: number;
-  plan?: 'mensal' | 'anual' | 'trial';
+  plan?: 'promocional_ano1' | 'mensal_regular' | 'anual';
+  priceMonthly?: number; // 49.90
+  regularPriceMonthly?: number; // 99.90
+  termsAccepted?: boolean;
+  termsAcceptedAt?: string;
+  subscriptionStatus?: 'ativo' | 'pendente_pagamento' | 'suspenso';
+  boletosEmitidos?: BoletoItem[];
 }
 
 export interface CompanyConfig {

@@ -26,11 +26,14 @@ export function Register({ onRegisterSuccess, onBackToLogin }: RegisterProps) {
         id: `user-${Date.now()}`,
         email: email.trim().toLowerCase(),
         name: adminName || 'Administrador',
+        companyName: companyName || 'AMP Consultorias',
         role: 'admin',
         createdAt: now,
-        trialStartDate: now,
-        trialDaysRemaining: 40,
-        plan: 'trial',
+        plan: 'promocional_ano1',
+        priceMonthly: 49.90,
+        regularPriceMonthly: 99.90,
+        termsAccepted: false, // Pop-up obrigatório de aceite no 1º acesso
+        subscriptionStatus: 'ativo',
       };
 
       onRegisterSuccess(session, password);
@@ -58,61 +61,45 @@ export function Register({ onRegisterSuccess, onBackToLogin }: RegisterProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Left Column: Benefits & Trial Badge */}
+          {/* Left Column: Benefits & Promotional Offer */}
           <div className="lg:col-span-5 space-y-6">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-full text-purple-300 text-xs font-bold mb-3">
-                <Sparkles size={14} className="text-purple-400" />
-                <span>40 Dias de Teste Grátis</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-300 text-xs font-bold mb-3">
+                <Sparkles size={14} className="text-emerald-400" />
+                <span>Oferta Especial: 50% OFF no 1º Ano</span>
               </div>
               <h1 className="text-3xl font-extrabold text-white tracking-tight leading-tight">
                 Assine o CRM Consultorias e impulsione seus contratos
               </h1>
               <p className="text-slate-400 text-sm mt-2">
-                Comece seu teste sem compromisso por 40 dias. Cancele quando quiser.
+                Aproveite o preço promocional exclusivo de lançamento no 1º ano.
               </p>
             </div>
 
-            {/* Billing Toggle (Mensal / Anual) */}
-            <div className="bg-slate-900/90 border border-slate-800 p-2 rounded-2xl">
-              <div className="text-xs font-semibold text-slate-400 px-2 mb-2">Selecione a Modalidade:</div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setBillingCycle('mensal')}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all text-center ${
-                    billingCycle === 'mensal'
-                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  Mensal (R$ 99/mês)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBillingCycle('anual')}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all text-center relative ${
-                    billingCycle === 'anual'
-                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span>Anual (R$ 79/mês)</span>
-                  <span className="absolute -top-2 right-1 bg-emerald-500 text-slate-950 font-black text-[9px] px-1.5 py-0.2 rounded-full uppercase">
-                    -20%
-                  </span>
-                </button>
+            {/* Price Box Highlight (R$ 49,90/mês) */}
+            <div className="bg-gradient-to-br from-purple-900/40 to-slate-900 border border-purple-500/30 p-5 rounded-3xl shadow-xl space-y-2">
+              <span className="text-[11px] font-extrabold text-purple-400 uppercase tracking-wider block">1º Ano Promocional</span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl font-black text-white">R$ 49,90<span className="text-xs text-slate-400 font-semibold">/mês</span></span>
+                <span className="text-sm text-slate-500 line-through">R$ 99,90</span>
               </div>
+              <p className="text-xs text-emerald-400 font-bold pt-1">
+                🎉 Economia de R$ 600,00 nos 12 primeiros meses!
+              </p>
+              <p className="text-[11px] text-slate-400">
+                • 12 boletos mensais emitidos<br/>
+                • Renovação regular no 2º ano por R$ 99,90/mês
+              </p>
             </div>
 
             {/* List of Features */}
-            <div className="space-y-3 pt-2">
+            <div className="space-y-3 pt-1">
               <FeatureItem text="Visão Kanban completa de todos os seus contratos" />
-              <FeatureItem text="Leitura e automação inteligente de e-mails de projetos" />
-              <FeatureItem text="Leitura automática de relatórios PDF com IA" />
-              <FeatureItem text="Gestão completa de consultores e atendimentos" />
-              <FeatureItem text="Configuração da marca e logo da sua consultoria" />
-              <FeatureItem text="40 dias totalmente grátis para testar na prática" />
+              <FeatureItem text="Leitura automática de Ordens de Serviço em PDF com IA" />
+              <FeatureItem text="Captura inteligente de e-mails de projetos" />
+              <FeatureItem text="Gestão completa de consultores credenciados" />
+              <FeatureItem text="Envio automático de alertas pelo Telegram" />
+              <FeatureItem text="Garantia de preço promocional no 1º ano por R$ 49,90/mês" />
             </div>
           </div>
 
@@ -121,10 +108,10 @@ export function Register({ onRegisterSuccess, onBackToLogin }: RegisterProps) {
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
               <div>
                 <h2 className="text-lg font-bold text-white">Criar Nova Conta de Empresa</h2>
-                <p className="text-xs text-slate-400">Preencha os dados abaixo para ativar seus 40 dias grátis</p>
+                <p className="text-xs text-slate-400">Preencha os dados para ativar seu plano promocional</p>
               </div>
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                40 Dias Grátis
+              <div className="bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[11px] font-bold px-3 py-1 rounded-lg">
+                1º Ano R$ 49,90/mês
               </div>
             </div>
 
