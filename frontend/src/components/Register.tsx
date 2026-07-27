@@ -205,14 +205,14 @@ export function Register({ onRegisterSuccess, onBackToLogin }: RegisterProps) {
                   ) : (
                     <>
                       <Sparkles size={18} />
-                      <span>Ativar 40 Dias Grátis Agora</span>
+                      <span>Assinar Plano Promocional (R$ 49,90/mês) 🚀</span>
                     </>
                   )}
                 </button>
               </div>
 
               <p className="text-[11px] text-center text-slate-500 mt-3">
-                Ao clicar em Ativar, você concorda com os termos de uso. O período de teste de 40 dias iniciará imediatamente.
+                Ao clicar em Assinar, você concorda com os termos de uso. O valor promocional de R$ 49,90/mês é válido para os primeiros 12 meses.
               </p>
             </form>
           </div>

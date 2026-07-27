@@ -67,11 +67,12 @@ serve(async (req) => {
 
     const promptText = `
 Você é um assistente de extração de dados especializado em ler contratos e Ordens de Serviço (PDFs).
-Seu objetivo é ler o PDF anexado e extrair os seguintes campos no formato JSON estruturado.
-Se um campo não existir ou não for encontrado no documento, retorne null para ele.
+Seu objetivo é ler o PDF anexado e extrair os dados dos clientes e demandas.
+
+IMPORTANTE: Se o PDF contiver MÚLTIPLOS clientes ou demandas (ex: 10 empresas em um único lote ou relatório), retorne SEMPRE uma ARRAY de objetos JSON, onde cada objeto representa 1 cliente/demanda individual. Se houver apenas 1 cliente, retorne uma array com 1 objeto.
 Não retorne nada além do JSON puro (sem marcações markdown como \`\`\`json).
 
-Campos desejados no JSON:
+Campos desejados para CADA cliente/demanda no JSON:
 - "codigo_rae": (string) O código RAE, geralmente no formato RAE-YYYY-XXXX.
 - "nome_cliente": (string) Nome completo ou Razão Social principal do cliente.
 - "razao_social": (string) Razão social do cliente.
@@ -140,18 +141,20 @@ Campos desejados no JSON:
       throw new Error('O Gemini não retornou um JSON válido.');
     }
 
-    const novoProjeto = {
-      ...extractedData,
+    // Se for array (múltiplos clientes) ou objeto único, trata como lista para criar 1 card por cliente
+    const items = Array.isArray(extractedData) ? extractedData : [extractedData];
+    const novosProjetos = items.map(item => ({
+      ...item,
       consultor_id: emailData.consultor_id,
       status: 'novo_contrato',
-    };
+    }));
 
     const { error: insertError } = await supabase
       .from('projetos')
-      .insert(novoProjeto);
+      .insert(novosProjetos);
 
     if (insertError) {
-      throw new Error('Erro ao inserir o projeto no banco: ' + insertError.message);
+      throw new Error('Erro ao inserir os projetos no banco: ' + insertError.message);
     }
 
     // 5. Atualiza o status do e-mail para processado
