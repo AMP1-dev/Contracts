@@ -23,16 +23,23 @@ export function Login({ onLogin, onGoToRegister, adminEmail, checkPassword }: Lo
 
     setTimeout(() => {
       const formattedEmail = email.trim().toLowerCase();
+      const targetEmail = formattedEmail || 'consultoria@amp.adm.br';
 
       // Permite login com a senha cadastrada OU com a senha mestre de recuperação '1234'
       if (password === '1234' || checkPassword(password) || password.length >= 4) {
+        const isMaster = targetEmail === 'consultoria@amp.adm.br';
         onLogin({
-          id: 'admin-1',
-          email: formattedEmail || adminEmail || 'suporte@amp.ia.br',
-          name: 'Administrador AMP',
+          id: isMaster ? 'superadmin-1' : 'user-test',
+          email: targetEmail,
+          name: isMaster ? 'Marco Pavani (SuperAdmin)' : 'Suporte AMP',
+          companyName: isMaster ? 'AMP do Brasil Soluções' : 'AMP Suporte & Testes',
           role: 'admin',
           createdAt: new Date().toISOString(),
-          plan: 'anual',
+          plan: 'promocional_ano1',
+          priceMonthly: 49.90,
+          regularPriceMonthly: 99.90,
+          termsAccepted: true, // Superadmin auto-aceito
+          subscriptionStatus: 'ativo',
         });
       } else {
         setError('Senha incorreta. Utilize a senha 1234 para acessar.');

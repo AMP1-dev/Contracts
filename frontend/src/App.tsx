@@ -9,9 +9,10 @@ import { ConsultantsPanel } from './components/ConsultantsPanel';
 import { TermsModal } from './components/TermsModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { SuspendedAccessModal } from './components/SuspendedAccessModal';
+import { SuperAdminPanel } from './components/SuperAdminPanel';
 import type { UserSession, CompanyConfig } from './types/database';
 
-type ViewState = 'kanban' | 'inbox' | 'consultores' | 'configuracoes';
+type ViewState = 'kanban' | 'inbox' | 'consultores' | 'configuracoes' | 'superadmin';
 type AuthState = 'authenticated' | 'login' | 'register';
 
 function App() {
@@ -119,6 +120,8 @@ function App() {
         return 'Gestão de Consultores';
       case 'configuracoes':
         return 'Configurações do Sistema';
+      case 'superadmin':
+        return '🛡️ Painel de Gestão SuperAdmin & Assinantes';
       default:
         return '';
     }
@@ -286,6 +289,19 @@ function App() {
               if (window.innerWidth < 768) setIsSidebarOpen(false);
             }}
           />
+          {session?.email === 'consultoria@amp.adm.br' && (
+            <SidebarItem
+              icon={<ShieldCheck size={20} className="text-purple-600" />}
+              label="Gestão SuperAdmin"
+              isOpen={isSidebarOpen}
+              active={currentView === 'superadmin'}
+              onClick={() => {
+                setCurrentView('superadmin');
+                if (window.innerWidth < 768) setIsSidebarOpen(false);
+              }}
+              badge="Master"
+            />
+          )}
           <SidebarItem
             icon={<CreditCard size={20} />}
             label="Minha Assinatura"
@@ -388,6 +404,11 @@ function App() {
           {currentView === 'consultores' && (
             <div className="h-full overflow-y-auto pb-10 hide-scrollbar">
               <ConsultantsPanel />
+            </div>
+          )}
+          {currentView === 'superadmin' && (
+            <div className="h-full overflow-y-auto pb-10 hide-scrollbar">
+              <SuperAdminPanel />
             </div>
           )}
         </div>

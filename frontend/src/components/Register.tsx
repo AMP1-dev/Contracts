@@ -66,40 +66,39 @@ export function Register({ onRegisterSuccess, onBackToLogin }: RegisterProps) {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-300 text-xs font-bold mb-3">
                 <Sparkles size={14} className="text-emerald-400" />
-                <span>Oferta Especial: 50% OFF no 1º Ano</span>
+                <span>30 Dias Grátis + R$ 49,90/mês no 1º Ano</span>
               </div>
               <h1 className="text-3xl font-extrabold text-white tracking-tight leading-tight">
-                Assine o CRM Consultorias e impulsione seus contratos
+                Experimente o CRM Consultorias com 30 Dias Grátis
               </h1>
               <p className="text-slate-400 text-sm mt-2">
-                Aproveite o preço promocional exclusivo de lançamento no 1º ano.
+                Teste na prática sem compromisso. Demandas e leitura de PDFs por IA ilimitadas.
               </p>
             </div>
 
-            {/* Price Box Highlight (R$ 49,90/mês) */}
+            {/* Price Box Highlight (30 Dias Grátis + R$ 49,90/mês) */}
             <div className="bg-gradient-to-br from-purple-900/40 to-slate-900 border border-purple-500/30 p-5 rounded-3xl shadow-xl space-y-2">
-              <span className="text-[11px] font-extrabold text-purple-400 uppercase tracking-wider block">1º Ano Promocional</span>
+              <span className="text-[11px] font-extrabold text-emerald-400 uppercase tracking-wider block">🎁 Teste de Lançamento</span>
               <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-black text-white">R$ 49,90<span className="text-xs text-slate-400 font-semibold">/mês</span></span>
-                <span className="text-sm text-slate-500 line-through">R$ 99,90</span>
+                <span className="text-3xl font-black text-white">30 Dias Grátis</span>
               </div>
-              <p className="text-xs text-emerald-400 font-bold pt-1">
-                🎉 Economia de R$ 600,00 nos 12 primeiros meses!
+              <p className="text-xs text-purple-300 font-bold pt-1">
+                ⚡ Depois dos 30 dias: Apenas R$ 49,90/mês no 1º Ano!
               </p>
               <p className="text-[11px] text-slate-400">
-                • 12 boletos mensais emitidos<br/>
-                • Renovação regular no 2º ano por R$ 99,90/mês
+                • Demandas & Leitura de PDFs Ilimitadas<br/>
+                • Economia garantida de R$ 600,00 no primeiro ano
               </p>
             </div>
 
             {/* List of Features */}
             <div className="space-y-3 pt-1">
+              <FeatureItem text="30 Dias Grátis para testar sem compromisso" />
+              <FeatureItem text="Demandas e leitura automática de PDFs por IA ilimitadas" />
               <FeatureItem text="Visão Kanban completa de todos os seus contratos" />
-              <FeatureItem text="Leitura automática de Ordens de Serviço em PDF com IA" />
               <FeatureItem text="Captura inteligente de e-mails de projetos" />
               <FeatureItem text="Gestão completa de consultores credenciados" />
-              <FeatureItem text="Envio automático de alertas pelo Telegram" />
-              <FeatureItem text="Garantia de preço promocional no 1º ano por R$ 49,90/mês" />
+              <FeatureItem text="Preço especial de R$ 49,90/mês no 1º ano após o teste" />
             </div>
           </div>
 
@@ -108,10 +107,10 @@ export function Register({ onRegisterSuccess, onBackToLogin }: RegisterProps) {
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
               <div>
                 <h2 className="text-lg font-bold text-white">Criar Nova Conta de Empresa</h2>
-                <p className="text-xs text-slate-400">Preencha os dados para ativar seu plano promocional</p>
+                <p className="text-xs text-slate-400">Preencha os dados para iniciar seu teste gratuito</p>
               </div>
-              <div className="bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[11px] font-bold px-3 py-1 rounded-lg">
-                1º Ano R$ 49,90/mês
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] font-bold px-3 py-1 rounded-lg">
+                30 Dias Grátis
               </div>
             </div>
 
