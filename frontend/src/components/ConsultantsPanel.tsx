@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserCheck, Plus, Mail, Phone, Shield, Award, Trash2 } from 'lucide-react';
+import { UserCheck, Plus, Mail, Phone, Shield, Award, Trash2, Pencil } from 'lucide-react';
 
 export interface Consultor {
   id: string;
@@ -52,6 +52,7 @@ export function ConsultantsPanel() {
     return INITIAL_CONSULTORES;
   });
   const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
@@ -63,22 +64,54 @@ export function ConsultantsPanel() {
     localStorage.setItem('amp_consultores', JSON.stringify(newList));
   };
 
-  const handleAddConsultor = (e: React.FormEvent) => {
+  const handleStartAdd = () => {
+    setEditingId(null);
+    setNome('');
+    setEmail('');
+    setTelefone('');
+    setEspecialidade('');
+    setIsAdding(true);
+  };
+
+  const handleStartEdit = (c: Consultor) => {
+    setEditingId(c.id);
+    setNome(c.nome);
+    setEmail(c.email);
+    setTelefone(c.telefone);
+    setEspecialidade(c.especialidade);
+    setIsAdding(true);
+  };
+
+  const handleSaveConsultor = (e: React.FormEvent) => {
     e.preventDefault();
     if (!nome || !email) return;
 
-    const newC: Consultor = {
-      id: `consultor-${Date.now()}`,
-      nome,
-      email,
-      telefone: telefone || '(11) 99999-0000',
-      especialidade: especialidade || 'Consultor Geral Sebrae',
-      status: 'ativo',
-      raesAtivas: 0,
-    };
+    if (editingId) {
+      // Editar existente
+      const updatedList = consultores.map(c => c.id === editingId ? {
+        ...c,
+        nome,
+        email,
+        telefone: telefone || c.telefone,
+        especialidade: especialidade || c.especialidade,
+      } : c);
+      saveConsultores(updatedList);
+    } else {
+      // Criar novo
+      const newC: Consultor = {
+        id: `consultor-${Date.now()}`,
+        nome,
+        email,
+        telefone: telefone || '(11) 99999-0000',
+        especialidade: especialidade || 'Consultor Geral Sebrae',
+        status: 'ativo',
+        raesAtivas: 0,
+      };
+      saveConsultores([newC, ...consultores]);
+    }
 
-    saveConsultores([newC, ...consultores]);
     setIsAdding(false);
+    setEditingId(null);
     setNome('');
     setEmail('');
     setTelefone('');
@@ -96,8 +129,11 @@ export function ConsultantsPanel() {
       raesAtivas: 5,
     };
 
-    // Avoid duplicate
-    if (!consultores.some(c => c.email === 'consultoria@amp.adm.br')) {
+    // Avoid duplicate or update
+    const existingIndex = consultores.findIndex(c => c.email === 'consultoria@amp.adm.br');
+    if (existingIndex >= 0) {
+      handleStartEdit(consultores[existingIndex]);
+    } else {
       saveConsultores([marco, ...consultores]);
     }
   };
@@ -132,7 +168,7 @@ export function ConsultantsPanel() {
           </button>
 
           <button
-            onClick={() => setIsAdding(!isAdding)}
+            onClick={handleStartAdd}
             className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
           >
             <Plus size={16} />
@@ -141,11 +177,13 @@ export function ConsultantsPanel() {
         </div>
       </div>
 
-      {/* Add Modal / Form */}
+      {/* Add / Edit Form */}
       {isAdding && (
         <div className="bg-purple-50/70 border border-purple-200 p-6 rounded-2xl animate-fadeIn space-y-4">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Novo Consultor</h3>
-          <form onSubmit={handleAddConsultor} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+            {editingId ? '✏️ Editar Dados do Consultor' : 'Novo Consultor'}
+          </h3>
+          <form onSubmit={handleSaveConsultor} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Nome Completo</label>
               <input
@@ -225,13 +263,22 @@ export function ConsultantsPanel() {
                 </div>
               </div>
 
-              <button
-                onClick={() => handleRemove(c.id)}
-                className="text-slate-300 hover:text-rose-600 transition-colors opacity-0 group-hover:opacity-100"
-                title="Remover consultor"
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => handleStartEdit(c)}
+                  className="p-1 text-slate-400 hover:text-purple-600 transition-colors rounded-lg hover:bg-purple-50"
+                  title="Editar consultor"
+                >
+                  <Pencil size={15} />
+                </button>
+                <button
+                  onClick={() => handleRemove(c.id)}
+                  className="p-1 text-slate-400 hover:text-rose-600 transition-colors rounded-lg hover:bg-rose-50"
+                  title="Remover consultor"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5 pt-2 text-xs text-slate-600 border-t border-slate-100">

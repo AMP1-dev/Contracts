@@ -115,12 +115,26 @@ const DEMO_PROJECTS: Project[] = [
 ];
 
 export function KanbanBoard() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('amp_projects');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return DEMO_PROJECTS;
+  });
   const [loading, setLoading] = useState(true);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const saveProjects = (newList: Project[]) => {
+    setProjects(newList);
+    localStorage.setItem('amp_projects', JSON.stringify(newList));
+  };
 
   useEffect(() => {
     async function fetchProjects() {
@@ -131,13 +145,10 @@ export function KanbanBoard() {
           .order('criado_em', { ascending: false });
 
         if (!error && data && data.length > 0) {
-          setProjects(data as Project[]);
-        } else {
-          setProjects(DEMO_PROJECTS);
+          saveProjects(data as Project[]);
         }
       } catch (err) {
-        console.warn("Usando projetos de demonstração:", err);
-        setProjects(DEMO_PROJECTS);
+        console.warn("Usando projetos de demonstração/locais:", err);
       } finally {
         setLoading(false);
       }
@@ -249,7 +260,8 @@ export function KanbanBoard() {
   const [selectedFilter, setSelectedFilter] = useState<ProjectStatus | 'all'>('all');
 
   const handleDeleteProject = async (projectId: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    const updated = projects.filter((p) => p.id !== projectId);
+    saveProjects(updated);
     try {
       await supabase.from('projetos').delete().eq('id', projectId);
     } catch (err) {
@@ -258,11 +270,13 @@ export function KanbanBoard() {
   };
 
   const handleCreateProject = (newProject: Project) => {
-    setProjects([newProject, ...projects]);
+    const updated = [newProject, ...projects];
+    saveProjects(updated);
   };
 
   const handleProjectUpdate = (updatedProject: Project) => {
-    setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+    const updated = projects.map(p => p.id === updatedProject.id ? updatedProject : p);
+    saveProjects(updated);
   };
 
   if (loading) {
