@@ -139,13 +139,67 @@ export function KanbanBoard() {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const { data, error } = await supabase
+        let fetchedList: Project[] = [];
+
+        // 1. Busca projetos reais da tabela 'projetos'
+        const { data: dbProjects, error: pError } = await supabase
           .from('projetos')
           .select('*')
           .order('criado_em', { ascending: false });
 
-        if (!error && data && data.length > 0) {
-          saveProjects(data as Project[]);
+        if (!pError && dbProjects && dbProjects.length > 0) {
+          fetchedList = [...(dbProjects as Project[])];
+        }
+
+        // 2. Busca e-mails processados reais da tabela 'emails_processados'
+        const { data: dbEmails, error: eError } = await supabase
+          .from('emails_processados')
+          .select('*')
+          .eq('status', 'processado')
+          .order('criado_em', { ascending: false });
+
+        if (!eError && dbEmails && dbEmails.length > 0) {
+          dbEmails.forEach((emailItem: any) => {
+            const assunto = emailItem.assunto || '';
+            const raeMatch = assunto.match(/(?:nº|n°|rae|os)[\s:]*([0-9\/\-]+)/i);
+            const rae = raeMatch ? raeMatch[1] : `RAE-${emailItem.id.slice(0, 5)}`;
+
+            let clienteNome = emailItem.remetente || 'Cliente Sebrae';
+            if (assunto.includes(' - ')) {
+              const parts = assunto.split(' - ');
+              clienteNome = parts[parts.length - 1].trim();
+            }
+
+            // Verifica se já não existe no Kanban
+            const exists = fetchedList.some(p => p.codigo_rae === rae || p.nome_cliente === clienteNome);
+            if (!exists) {
+              const realProj: Project = {
+                id: `email-proc-${emailItem.id}`,
+                consultor_id: 'admin-1',
+                codigo_rae: rae,
+                status: 'novo_contrato',
+                nome_cliente: clienteNome,
+                razao_social: clienteNome,
+                solucao_contratada: 'Consultoria de Gestão (Processada via E-mail / PDF)',
+                objetivo_atendimento: `Demanda capturada pelo robô IA. Assunto: ${assunto}`,
+                horas_contratadas: 20,
+                horas_realizadas: 0,
+                data_prevista_inicio: emailItem.criado_em.split('T')[0],
+                data_prevista_fim: emailItem.criado_em.split('T')[0],
+                modalidade: 'Presencial',
+                valor_consultoria: 3500,
+                observacoes: `Anexo: ${emailItem.anexo_nome || 'Ordem_de_Servico.pdf'}`,
+                dados_extra: {},
+                criado_em: emailItem.criado_em,
+                atualizado_em: emailItem.criado_em,
+              };
+              fetchedList.unshift(realProj);
+            }
+          });
+        }
+
+        if (fetchedList.length > 0) {
+          saveProjects(fetchedList);
         }
       } catch (err) {
         console.warn("Usando projetos de demonstração/locais:", err);
