@@ -42,13 +42,26 @@ const INITIAL_CONSULTORES: Consultor[] = [
 ];
 
 export function ConsultantsPanel() {
-  const [consultores, setConsultores] = useState<Consultor[]>(INITIAL_CONSULTORES);
+  const [consultores, setConsultores] = useState<Consultor[]>(() => {
+    const saved = localStorage.getItem('amp_consultores');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return INITIAL_CONSULTORES;
+  });
   const [isAdding, setIsAdding] = useState(false);
 
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [telefone, setTelefone] = useState('');
   const [especialidade, setEspecialidade] = useState('');
+
+  const saveConsultores = (newList: Consultor[]) => {
+    setConsultores(newList);
+    localStorage.setItem('amp_consultores', JSON.stringify(newList));
+  };
 
   const handleAddConsultor = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +77,7 @@ export function ConsultantsPanel() {
       raesAtivas: 0,
     };
 
-    setConsultores([newC, ...consultores]);
+    saveConsultores([newC, ...consultores]);
     setIsAdding(false);
     setNome('');
     setEmail('');
@@ -72,8 +85,26 @@ export function ConsultantsPanel() {
     setEspecialidade('');
   };
 
+  const handleAddMarco = () => {
+    const marco: Consultor = {
+      id: `consultor-marco-${Date.now()}`,
+      nome: 'Marco Antonio Pavani',
+      email: 'consultoria@amp.adm.br',
+      telefone: '(11) 98765-4321',
+      especialidade: 'Gestão, Controladoria & Sebrae',
+      status: 'ativo',
+      raesAtivas: 5,
+    };
+
+    // Avoid duplicate
+    if (!consultores.some(c => c.email === 'consultoria@amp.adm.br')) {
+      saveConsultores([marco, ...consultores]);
+    }
+  };
+
   const handleRemove = (id: string) => {
-    setConsultores(consultores.filter(c => c.id !== id));
+    const updated = consultores.filter(c => c.id !== id);
+    saveConsultores(updated);
   };
 
   return (
@@ -90,13 +121,24 @@ export function ConsultantsPanel() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsAdding(!isAdding)}
-          className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
-        >
-          <Plus size={16} />
-          <span>Cadastrar Novo Consultor</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleAddMarco}
+            className="bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5"
+            title="Adicionar automaticamente Marco Antonio Pavani (consultoria@amp.adm.br)"
+          >
+            <Award size={16} className="text-purple-700" />
+            <span>Cadastrar Meu Perfil (Marco Pavani)</span>
+          </button>
+
+          <button
+            onClick={() => setIsAdding(!isAdding)}
+            className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
+          >
+            <Plus size={16} />
+            <span>Cadastrar Novo Consultor</span>
+          </button>
+        </div>
       </div>
 
       {/* Add Modal / Form */}

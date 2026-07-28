@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer } from 'lucide-react';
+import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2 } from 'lucide-react';
 import type { Project } from '../types/database';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
@@ -9,9 +9,10 @@ interface ProjectDetailsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onUpdate: (updatedProject: Project) => void;
+  onDelete?: (projectId: string) => void;
 }
 
-export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate }: ProjectDetailsPanelProps) {
+export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDelete }: ProjectDetailsPanelProps) {
   const [formData, setFormData] = useState<Partial<Project>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -687,6 +688,21 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate }: Proj
               <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
                 <CheckCircle2 size={16} /> Salvo com sucesso!
               </span>
+            )}
+            {onDelete && project.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm(`Tem certeza que deseja excluir a demanda "${project.nome_cliente || project.codigo_rae}" do Kanban?`)) {
+                    onDelete(project.id);
+                    onClose();
+                  }
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 size={14} />
+                <span>Excluir Demanda</span>
+              </button>
             )}
           </div>
           <div className="flex gap-3">

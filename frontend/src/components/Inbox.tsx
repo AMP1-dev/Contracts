@@ -15,22 +15,52 @@ interface EmailProcessado {
   criado_em: string;
 }
 
+const DEMO_EMAILS: EmailProcessado[] = [
+  {
+    id: 'email-demo-1',
+    message_id: 'msg-001',
+    remetente: 'sistema.soma@sebrae.com.br',
+    assunto: 'Ordem de Serviço nº 060628/2026 - Metalúrgica Inovação & Soluções',
+    status: 'recebido',
+    erro_detalhe: null,
+    anexo_nome: 'RAE_060628_Inovacao_Metal.pdf',
+    criado_em: new Date().toISOString(),
+  },
+  {
+    id: 'email-demo-2',
+    message_id: 'msg-002',
+    remetente: 'credenciados@sebraesp.com.br',
+    assunto: 'Nova Demanda Sebraetec nº 098412/2026 - Empório Vila Rica',
+    status: 'recebido',
+    erro_detalhe: null,
+    anexo_nome: 'OS_098412_VilaRica.pdf',
+    criado_em: new Date().toISOString(),
+  }
+];
+
 export function Inbox() {
   const [emails, setEmails] = useState<EmailProcessado[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const fetchEmails = async () => {
-    const { data, error } = await supabase
-      .from('emails_processados')
-      .select('*')
-      .order('criado_em', { ascending: false })
-      .limit(50);
+    try {
+      const { data, error } = await supabase
+        .from('emails_processados')
+        .select('*')
+        .order('criado_em', { ascending: false })
+        .limit(50);
 
-    if (!error && data) {
-      setEmails(data as EmailProcessado[]);
+      if (!error && data && data.length > 0) {
+        setEmails(data as EmailProcessado[]);
+      } else {
+        setEmails(DEMO_EMAILS);
+      }
+    } catch (e) {
+      setEmails(DEMO_EMAILS);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {

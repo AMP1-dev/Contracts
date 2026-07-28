@@ -246,6 +246,17 @@ export function KanbanBoard() {
     }
   };
 
+  const [selectedFilter, setSelectedFilter] = useState<ProjectStatus | 'all'>('all');
+
+  const handleDeleteProject = async (projectId: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    try {
+      await supabase.from('projetos').delete().eq('id', projectId);
+    } catch (err) {
+      console.warn("Erro ao deletar projeto no Supabase:", err);
+    }
+  };
+
   const handleCreateProject = (newProject: Project) => {
     setProjects([newProject, ...projects]);
   };
@@ -268,13 +279,17 @@ export function KanbanBoard() {
     }
   };
 
+  const displayedColumns = selectedFilter === 'all'
+    ? KANBAN_COLUMNS
+    : KANBAN_COLUMNS.filter((col) => col.id === selectedFilter);
+
   return (
     <div className="h-full flex flex-col w-full max-w-full overflow-hidden">
       
       {/* Top Action & Slider Control Bar */}
       <div className="mb-3.5 flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
         
-        {/* Left: Total & Column Switcher Pills */}
+        {/* Left: Total & Column Switcher Pills (Filtros de Etapa) */}
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1 min-w-0">
           <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shrink-0">
             Total: <strong>{projects.length}</strong>
@@ -282,19 +297,44 @@ export function KanbanBoard() {
 
           <div className="h-4 w-[1px] bg-slate-200 shrink-0 hidden sm:block"></div>
 
-          {/* Quick Column Switcher Pills */}
+          {/* Quick Column Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
+            <button
+              type="button"
+              onClick={() => setSelectedFilter('all')}
+              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap shrink-0 ${
+                selectedFilter === 'all'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+              }`}
+            >
+              Ver Todas as Colunas ({projects.length})
+            </button>
+
             {KANBAN_COLUMNS.map((col) => {
               const count = projects.filter((p) => p.status === col.id).length;
+              const isSelected = selectedFilter === col.id;
               return (
                 <button
                   key={col.id}
-                  onClick={() => handleScrollToColumn(col.id)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1.5 shrink-0"
+                  type="button"
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedFilter('all');
+                    } else {
+                      setSelectedFilter(col.id);
+                      handleScrollToColumn(col.id);
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 shrink-0 ${
+                    isSelected
+                      ? 'bg-purple-900 text-white border-purple-700 font-extrabold ring-2 ring-purple-400'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                  }`}
                 >
                   <span className={`w-2 h-2 rounded-full ${col.color}`}></span>
                   <span>{col.title}</span>
-                  <span className="bg-white text-slate-600 font-bold px-1.5 py-0.2 rounded text-[10px] shadow-2xs">
+                  <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${isSelected ? 'bg-purple-700 text-white' : 'bg-white text-slate-600 shadow-2xs'}`}>
                     {count}
                   </span>
                 </button>
@@ -388,7 +428,7 @@ export function KanbanBoard() {
             className="flex h-full gap-5 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scroll-smooth w-full"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {KANBAN_COLUMNS.map((col) => (
+            {displayedColumns.map((col) => (
               <div key={col.id} id={`col-${col.id}`} className="snap-start shrink-0">
                 <KanbanColumn
                   column={col}
@@ -414,6 +454,7 @@ export function KanbanBoard() {
         isOpen={!!selectedProject} 
         onClose={() => setSelectedProject(null)} 
         onUpdate={handleProjectUpdate}
+        onDelete={handleDeleteProject}
       />
 
       <NewProjectModal
