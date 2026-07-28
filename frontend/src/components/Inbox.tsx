@@ -17,6 +17,16 @@ interface EmailProcessado {
 
 const DEMO_EMAILS: EmailProcessado[] = [
   {
+    id: 'email-os-07873',
+    message_id: 'msg-07873',
+    remetente: 'ciomaliaam@sebraesp.com.br',
+    assunto: 'Ordem de Serviço nº 07873 - Ericka Clemente dos Santos Nunes (39090075 SGF)',
+    status: 'processado',
+    erro_detalhe: null,
+    anexo_nome: 'OS_07873_Ericka_Clemente_SGF.pdf',
+    criado_em: new Date().toISOString(),
+  },
+  {
     id: 'email-demo-1',
     message_id: 'msg-001',
     remetente: 'sistema.soma@sebrae.com.br',
