@@ -66,33 +66,25 @@ serve(async (req) => {
     }
 
     const promptText = `
-Você é um assistente de extração de dados especializado em ler contratos e Ordens de Serviço (PDFs).
-Seu objetivo é ler o PDF anexado e extrair os dados dos clientes e demandas.
+Você é um assistente de extração de dados de altíssima precisão especializado em ler Ordens de Serviço (OS/RAE) do SEBRAE em PDF.
+Seu objetivo é ler o PDF anexado, localizar as tags e rótulos de cada campo e extrair os dados estruturados em JSON.
 
-IMPORTANTE: Se o PDF contiver MÚLTIPLOS clientes ou demandas (ex: 10 empresas em um único lote ou relatório), retorne SEMPRE uma ARRAY de objetos JSON, onde cada objeto representa 1 cliente/demanda individual. Se houver apenas 1 cliente, retorne uma array com 1 objeto.
-Não retorne nada além do JSON puro (sem marcações markdown como \`\`\`json).
+REGRAS DE LEITURA E TAGS:
+- "codigo_rae": Procure por "Ordem de Serviço", "OS nº", "RAE nº", "Nº da OS" ou códigos como "07873" / "39090075".
+- "valor_consultoria": Procure por tags de valor como "Valor Total", "Valor da OS", "Valor R$", "Valor do Atendimento", "Valor Consultoria" ou cifras R$. Extraia o valor numérico total (ex: 350.00 ou 250.00). Retorne apenas um número float/int.
+- "programa": Procure pelo Produto Aplicado ou código SGF, ex: "39090075 ABRIR SGF 2026 | PADRÃO | 110" ou "SGF 2026".
+- "solucao_contratada": Procure pelo título/objeto da contratação, ex: "Faça a gestão financeira e tenha controle do seu dinheiro".
+- "modalidade": Identifique o formato de execução: "Remoto", "Presencial", "Online" ou "A Distância".
+- "nome_cliente" e "razao_social": Nome do cliente/empresa atendida (ex: "Ericka Clemente dos Santos Nunes").
+- "cnpj" e "cpf": Procure por CNPJ (ex: 66.212.730/0001-64) e CPF (ex: 364.678.198-02).
+- "telefone" / "celular": Procure por telefones ou celulares do cliente.
+- "email_cliente": E-mail do cliente.
+- "municipio" e "estado": Cidade e UF do cliente.
+- "horas_contratadas": Carga horária (ex: 1, 2, 4, 20).
+- "data_prevista_inicio": Data agendada do atendimento (formato YYYY-MM-DD).
 
-Campos desejados para CADA cliente/demanda no JSON:
-- "codigo_rae": (string) O código RAE, geralmente no formato RAE-YYYY-XXXX.
-- "nome_cliente": (string) Nome completo ou Razão Social principal do cliente.
-- "razao_social": (string) Razão social do cliente.
-- "nome_fantasia": (string) Nome fantasia do cliente.
-- "cnpj": (string) CNPJ do cliente.
-- "cpf": (string) CPF do cliente (se houver).
-- "telefone": (string) Telefone fixo.
-- "celular": (string) Celular.
-- "email_cliente": (string) E-mail do cliente.
-- "municipio": (string) Município / Cidade.
-- "estado": (string) Sigla do Estado (UF).
-- "endereco": (string) Endereço completo.
-- "programa": (string) Nome do programa (ex: Sebrae Mais, Brasil Mais, etc).
-- "solucao_contratada": (string) Nome do serviço ou solução contratada.
-- "objetivo_atendimento": (string) Descrição ou objetivo do atendimento.
-- "horas_contratadas": (number) Apenas o número de horas totais contratadas.
-- "data_prevista_inicio": (string) Data no formato YYYY-MM-DD.
-- "data_prevista_fim": (string) Data no formato YYYY-MM-DD.
-- "modalidade": (string) Ex: Presencial, Online, Híbrido.
-- "valor_consultoria": (number) Valor total monetário. Retorne apenas o número (ex: 5000.50).
+IMPORTANTE: Se o PDF contiver MÚLTIPLOS clientes ou demandas (ex: 10 empresas em um único lote), retorne SEMPRE uma ARRAY de objetos JSON, onde cada objeto representa 1 cliente/demanda individual.
+Não retorne nada além do JSON puro.
 `;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
