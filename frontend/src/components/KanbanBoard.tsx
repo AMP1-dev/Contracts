@@ -189,6 +189,8 @@ export function KanbanBoard() {
           ...p,
           nome_cliente: 'Ericka Clemente dos Santos Nunes',
           razao_social: 'Ericka Clemente dos Santos Nunes',
+          cnpj: '66.212.730/0001-64',
+          cpf: '364.678.198-02',
           codigo_rae: '070873/2026',
           modalidade: 'À Distância (Online)',
           valor_consultoria: 170,

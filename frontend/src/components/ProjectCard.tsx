@@ -76,9 +76,9 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
           {project.modalidade && (
             <span className={cn(
               "text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider border",
-              project.modalidade.toLowerCase() === 'remoto' && "bg-emerald-50 text-emerald-700 border-emerald-200",
-              project.modalidade.toLowerCase() === 'presencial' && "bg-amber-50 text-amber-700 border-amber-200",
-              project.modalidade.toLowerCase() === 'híbrido' && "bg-blue-50 text-blue-700 border-blue-200"
+              (project.modalidade.toLowerCase().includes('remoto') || project.modalidade.toLowerCase().includes('online') || project.modalidade.toLowerCase().includes('distância')) && "bg-emerald-50 text-emerald-700 border-emerald-200",
+              project.modalidade.toLowerCase().includes('presencial') && "bg-amber-50 text-amber-700 border-amber-200",
+              project.modalidade.toLowerCase().includes('híbrido') && "bg-blue-50 text-blue-700 border-blue-200"
             )}>
               {project.modalidade}
             </span>
