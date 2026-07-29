@@ -152,6 +152,26 @@ const DEMO_PROJECTS: Project[] = [
   }
 ];
 
+function deduplicateProjects(list: Project[]): Project[] {
+  const seen = new Set<string>();
+  const result: Project[] = [];
+
+  for (const item of list) {
+    // Normaliza a chave de deduplicação pelo RAE/OS ou nome do cliente
+    let rawKey = item.codigo_rae || item.nome_cliente || item.id;
+    if (rawKey.includes('070873') || rawKey.includes('07873') || item.nome_cliente.includes('Ericka')) {
+      rawKey = 'os-070873-ericka';
+    }
+    const key = rawKey.toLowerCase().trim();
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+    }
+  }
+
+  return result;
+}
+
 export function KanbanBoard() {
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('amp_projects');
@@ -163,8 +183,8 @@ export function KanbanBoard() {
       } catch (e) {}
     }
     // Sanitiza qualquer versão em cache da OS 070873/2026 para os valores reais oficiais da OS
-    return list.map(p => {
-      if (p.id.includes('07873') || p.codigo_rae.includes('07873') || p.codigo_rae.includes('070873')) {
+    const sanitized = list.map(p => {
+      if (p.id.includes('07873') || p.codigo_rae.includes('07873') || p.codigo_rae.includes('070873') || p.nome_cliente.includes('Ericka')) {
         return {
           ...p,
           nome_cliente: 'Ericka Clemente dos Santos Nunes',
@@ -178,6 +198,8 @@ export function KanbanBoard() {
       }
       return p;
     });
+
+    return deduplicateProjects(sanitized);
   });
   const [loading, setLoading] = useState(true);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -186,14 +208,15 @@ export function KanbanBoard() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const saveProjects = (newList: Project[]) => {
-    setProjects(newList);
-    localStorage.setItem('amp_projects', JSON.stringify(newList));
+    const cleanList = deduplicateProjects(newList);
+    setProjects(cleanList);
+    localStorage.setItem('amp_projects', JSON.stringify(cleanList));
   };
 
   useEffect(() => {
     async function fetchProjects() {
       try {
-        let fetchedList: Project[] = [];
+        let fetchedList: Project[] = [...projects];
 
         // 1. Busca projetos reais da tabela 'projetos'
         const { data: dbProjects, error: pError } = await supabase
@@ -224,13 +247,11 @@ export function KanbanBoard() {
               clienteNome = parts[parts.length - 1].trim();
             }
 
-            const isOS07873 = assunto.includes('070873') || assunto.includes('07873') || rae.includes('07873') || rae.includes('070873');
-            const valorReal = isOS07873 ? 170 : 170;
-            const modalidadeReal = isOS07873 ? 'À Distância (Online)' : 'À Distância (Online)';
+            const isOS07873 = assunto.includes('070873') || assunto.includes('07873') || rae.includes('07873') || rae.includes('070873') || clienteNome.includes('Ericka');
             const raeReal = isOS07873 ? '070873/2026' : rae;
 
             // Verifica se já não existe no Kanban
-            const existingIndex = fetchedList.findIndex(p => p.codigo_rae === raeReal || p.id.includes('07873'));
+            const existingIndex = fetchedList.findIndex(p => p.codigo_rae === raeReal || p.id.includes('07873') || p.nome_cliente.includes('Ericka'));
             if (existingIndex >= 0) {
               // Atualiza o existente com os valores corretos da OS
               fetchedList[existingIndex] = {
@@ -277,9 +298,7 @@ export function KanbanBoard() {
           });
         }
 
-        if (fetchedList.length > 0) {
-          saveProjects(fetchedList);
-        }
+        saveProjects(fetchedList);
       } catch (err) {
         console.warn("Usando projetos de demonstração/locais:", err);
       } finally {
