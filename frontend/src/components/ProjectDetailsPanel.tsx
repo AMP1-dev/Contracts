@@ -424,6 +424,60 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
             </div>
           </section>
 
+          {/* Dados da Ordem de Serviço & Valor R$ */}
+          <section className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <FileText size={16} className="text-primary" />
+              Dados da Ordem de Serviço & Valor (R$)
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+              <InputField 
+                label="Código RAE / OS nº" 
+                value={formData.codigo_rae} 
+                onChange={(v) => handleChange('codigo_rae', v)} 
+              />
+              <InputField 
+                label="Valor da OS (R$)" 
+                type="number"
+                value={formData.valor_consultoria} 
+                onChange={(v) => handleChange('valor_consultoria', parseFloat(v) || 0)} 
+              />
+              <InputField 
+                label="Programa / Produto Aplicado" 
+                value={formData.programa} 
+                onChange={(v) => handleChange('programa', v)} 
+              />
+              <InputField 
+                label="Modalidade / Formato (Remoto/Presencial)" 
+                value={formData.modalidade} 
+                onChange={(v) => handleChange('modalidade', v)} 
+              />
+              <InputField 
+                label="Horas Contratadas" 
+                type="number"
+                value={formData.horas_contratadas} 
+                onChange={(v) => handleChange('horas_contratadas', parseInt(v) || 0)} 
+              />
+              <InputField 
+                label="Horas Realizadas" 
+                type="number"
+                value={formData.horas_realizadas} 
+                onChange={(v) => handleChange('horas_realizadas', parseInt(v) || 0)} 
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Objeto / Solução Contratada</label>
+              <input 
+                type="text"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary transition-all"
+                value={formData.solucao_contratada || ''}
+                onChange={(e) => handleChange('solucao_contratada', e.target.value)}
+              />
+            </div>
+          </section>
+
           {/* Dados do Cliente */}
           <section className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
