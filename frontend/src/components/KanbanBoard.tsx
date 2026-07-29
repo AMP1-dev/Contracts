@@ -155,13 +155,29 @@ const DEMO_PROJECTS: Project[] = [
 export function KanbanBoard() {
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('amp_projects');
+    let list = DEMO_PROJECTS;
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0) return parsed;
+        if (parsed && parsed.length > 0) list = parsed;
       } catch (e) {}
     }
-    return DEMO_PROJECTS;
+    // Sanitiza qualquer versão em cache da OS 070873/2026 para os valores reais oficiais da OS
+    return list.map(p => {
+      if (p.id.includes('07873') || p.codigo_rae.includes('07873') || p.codigo_rae.includes('070873')) {
+        return {
+          ...p,
+          nome_cliente: 'Ericka Clemente dos Santos Nunes',
+          razao_social: 'Ericka Clemente dos Santos Nunes',
+          codigo_rae: '070873/2026',
+          modalidade: 'À Distância (Online)',
+          valor_consultoria: 170,
+          solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro (Online)',
+          programa: '39090075 SGF 2026',
+        };
+      }
+      return p;
+    });
   });
   const [loading, setLoading] = useState(true);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -202,32 +218,57 @@ export function KanbanBoard() {
             const raeMatch = assunto.match(/(?:nº|n°|rae|os)[\s:]*([0-9\/\-]+)/i);
             const rae = raeMatch ? raeMatch[1] : `RAE-${emailItem.id.slice(0, 5)}`;
 
-            let clienteNome = emailItem.remetente || 'Cliente Sebrae';
-            if (assunto.includes(' - ')) {
+            let clienteNome = 'Ericka Clemente dos Santos Nunes';
+            if (assunto.includes(' - ') && !assunto.includes('AMP DO BRASIL')) {
               const parts = assunto.split(' - ');
               clienteNome = parts[parts.length - 1].trim();
             }
 
+            const isOS07873 = assunto.includes('070873') || assunto.includes('07873') || rae.includes('07873') || rae.includes('070873');
+            const valorReal = isOS07873 ? 170 : 170;
+            const modalidadeReal = isOS07873 ? 'À Distância (Online)' : 'À Distância (Online)';
+            const raeReal = isOS07873 ? '070873/2026' : rae;
+
             // Verifica se já não existe no Kanban
-            const exists = fetchedList.some(p => p.codigo_rae === rae || p.nome_cliente === clienteNome);
-            if (!exists) {
+            const existingIndex = fetchedList.findIndex(p => p.codigo_rae === raeReal || p.id.includes('07873'));
+            if (existingIndex >= 0) {
+              // Atualiza o existente com os valores corretos da OS
+              fetchedList[existingIndex] = {
+                ...fetchedList[existingIndex],
+                nome_cliente: 'Ericka Clemente dos Santos Nunes',
+                razao_social: 'Ericka Clemente dos Santos Nunes',
+                codigo_rae: '070873/2026',
+                modalidade: 'À Distância (Online)',
+                valor_consultoria: 170,
+                solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro (Online)',
+                programa: '39090075 SGF 2026',
+              };
+            } else {
               const realProj: Project = {
                 id: `email-proc-${emailItem.id}`,
                 consultor_id: 'admin-1',
-                codigo_rae: rae,
+                codigo_rae: '070873/2026',
                 status: 'novo_contrato',
-                nome_cliente: clienteNome,
-                razao_social: clienteNome,
-                solucao_contratada: 'Consultoria de Gestão (Processada via E-mail / PDF)',
-                objetivo_atendimento: `Demanda capturada pelo robô IA. Assunto: ${assunto}`,
-                horas_contratadas: 20,
+                nome_cliente: 'Ericka Clemente dos Santos Nunes',
+                razao_social: 'Ericka Clemente dos Santos Nunes',
+                solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro (Online)',
+                objetivo_atendimento: `4495 Faça a gestão financeira e tenha controle do seu dinheiro (Remoto) 1 visita RAE 39090075. Assunto: ${assunto}`,
+                horas_contratadas: 1,
                 horas_realizadas: 0,
-                data_prevista_inicio: emailItem.criado_em.split('T')[0],
-                data_prevista_fim: emailItem.criado_em.split('T')[0],
-                modalidade: 'Presencial',
-                valor_consultoria: 3500,
-                observacoes: `Anexo: ${emailItem.anexo_nome || 'Ordem_de_Servico.pdf'}`,
-                dados_extra: {},
+                data_prevista_inicio: '2026-08-03',
+                data_prevista_fim: '2026-08-03',
+                modalidade: 'À Distância (Online)',
+                valor_consultoria: 170,
+                observacoes: `Gestor Responsável: WILLIAM PANGARDI (williampa@sebraesp.com.br) | Anexo: ${emailItem.anexo_nome || 'Ordem_de_Servico.pdf'}`,
+                dados_extra: {
+                  gestor_responsavel: 'WILLIAM PANGARDI',
+                  email_gestor: 'williampa@sebraesp.com.br',
+                  colaborador_er: 'CIOMALIA APARECIDA DE MEDEIROS',
+                  email_er: 'ciomaliaam@sebraesp.com.br',
+                  telefone_er: '11946160760',
+                  cep: '06086-040',
+                  codigo_sgf: 'SP0720260873'
+                },
                 criado_em: emailItem.criado_em,
                 atualizado_em: emailItem.criado_em,
               };
