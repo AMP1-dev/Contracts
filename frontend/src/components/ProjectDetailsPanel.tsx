@@ -3,6 +3,7 @@ import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare,
 import type { Project } from '../types/database';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
+import { REPORT_ARROW_B64, REPORT_BANNER_B64, REPORT_LOGO_B64 } from '../assets/reportAssets';
 
 interface ProjectDetailsPanelProps {
   project: Project | null;
@@ -63,7 +64,17 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
   if (!project) return null;
 
   const handleChange = (field: keyof Project, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      // Se alterar Razão Social, atualiza também nome_cliente para manter cabeçalho e card sincronizados
+      if (field === 'razao_social' && value) {
+        updated.nome_cliente = value;
+      }
+      if (field === 'nome_cliente' && value) {
+        updated.razao_social = value;
+      }
+      return updated;
+    });
   };
 
   const handleSave = async () => {
@@ -71,25 +82,32 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     setIsSaving(true);
     setSaveSuccess(false);
 
+    const updatedData: Project = {
+      ...project,
+      ...formData,
+      nome_cliente: formData.nome_cliente || formData.razao_social || project.nome_cliente,
+      razao_social: formData.razao_social || formData.nome_cliente || project.razao_social,
+    } as Project;
+
     try {
       const { error } = await supabase
         .from('projetos')
-        .update(formData)
+        .update(updatedData)
         .eq('id', project.id);
 
       if (!error) {
         setSaveSuccess(true);
-        onUpdate({ ...project, ...formData } as Project);
+        onUpdate(updatedData);
         setTimeout(() => {
           setSaveSuccess(false);
           onClose();
         }, 400);
       } else {
-        onUpdate({ ...project, ...formData } as Project);
+        onUpdate(updatedData);
         onClose();
       }
     } catch (err) {
-      onUpdate({ ...project, ...formData } as Project);
+      onUpdate(updatedData);
       onClose();
     } finally {
       setIsSaving(false);
@@ -170,6 +188,42 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     }
   };
 
+  // Helper date formatters for official report
+  const formatDataExtenso = (dateStr?: string | null): string => {
+    if (!dateStr) return '17 de agosto de 2026';
+    const clean = dateStr.trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(clean)) {
+      const [d, m, y] = clean.split('/');
+      const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+      return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(clean)) {
+      const [y, m, d] = clean.substring(0, 10).split('-');
+      const date = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10));
+      return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    const parsed = new Date(clean);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    return clean;
+  };
+
+  const formatDataSimples = (dateStr?: string | null): string => {
+    if (!dateStr) return '17/08/2026';
+    const clean = dateStr.trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(clean)) return clean;
+    if (/^\d{4}-\d{2}-\d{2}/.test(clean)) {
+      const [y, m, d] = clean.substring(0, 10).split('-');
+      return `${d}/${m}/${y}`;
+    }
+    const parsed = new Date(clean);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleDateString('pt-BR');
+    }
+    return clean;
+  };
+
   // Print / View Official SOMA SEBRAE Report
   const handlePrintReport = () => {
     const printWindow = window.open('', '_blank');
@@ -177,18 +231,26 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
 
     const edital = formData.edital || '004/2026';
     const processoNo = formData.processo_no || '1777/2025';
-    const contratoNo = formData.contrato_no || formData.codigo_rae || '[Está na OS]';
-    const empresaCredenciada = 'AMP Consultorias & Gestão Credenciada Sebrae';
-    const profissional = 'Consultor Credenciado Sebrae';
-    const natureza = 'Instrutoria/Consultoria';
-    const objeto = formData.solucao_contratada || '[Está no contrato no campo Objeto da contratação]';
-    const localPrestacao = formData.municipio ? `${formData.municipio} - ${formData.estado || 'SP'}` : '[Cidade do cliente]';
-    const dataExecucao = formData.data_prevista_inicio ? `${formData.data_prevista_inicio} a ${formData.data_prevista_fim || 'Finalização'}` : '[Todas as datas dos atendimentos]';
-    const qtdHoras = `${formData.horas_realizadas || formData.horas_contratadas || 20} horas`;
-    const plataforma = formData.plataforma_utilizada || formData.modalidade || 'Presencial';
-    const nomeCliente = formData.razao_social || formData.nome_cliente || '[Razão Social conforme recebido no e-mail]';
-    const cnpjCliente = formData.cnpj || formData.cpf || '[CNPJ conforme recebido no e-mail]';
-    const rae = formData.codigo_rae || '[Números de RAE]';
+    const contratoNo = formData.contrato_no || '070873/2026';
+    const empresaCredenciada = formData.empresa_credenciada || 'AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA';
+    const profissional = formData.profissional_responsavel || 'MARCO ANTONIO PAVANI';
+    const natureza = formData.natureza || 'CONSULTORIA';
+    const objeto = formData.solucao_contratada || 'Faça a gestão financeira e tenha controle do seu dinheiro';
+    const localPrestacao = formData.municipio 
+      ? (formData.municipio.includes('Remoto') ? formData.municipio : `${formData.municipio} (Remoto)`) 
+      : 'Cotia (Remoto)';
+    
+    // Data informada no atendimento (NÃO a data de hoje que gera o relatório)
+    const dataAtendimentoInformada = formData.data_atendimento || formData.data_prevista_inicio || '2026-08-17';
+    const dataExecucao = formatDataSimples(dataAtendimentoInformada);
+    const dataExtenso = formatDataExtenso(dataAtendimentoInformada);
+
+    const qtdHoras = `${formData.horas_realizadas || formData.horas_contratadas || 1} horas`;
+    const plataforma = formData.plataforma_utilizada || 'Plataforma Microsoft Teams';
+    const nomeCliente = formData.nome_cliente || formData.razao_social || '66.212.730 ERICKA CLEMENTE DOS SANTOS NUNES';
+    const cnpjCliente = formData.cnpj || '66.212.730/0001-64';
+    const rae = formData.codigo_rae ? formData.codigo_rae.replace(/\D/g, '') || formData.codigo_rae : '39090075';
+    const cidadeRodape = formData.municipio ? formData.municipio.replace(/\s*\(.*?\)/g, '').trim() : 'Cotia';
 
     const html = `
       <!DOCTYPE html>
@@ -196,46 +258,46 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
         <head>
           <title>SOMA SEBRAE - Relatório de Prestação de Serviço - ${rae}</title>
           <style>
-            @page { size: A4; margin: 12mm; }
-            body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; color: #000; line-height: 1.35; padding: 15px; background: #fff; }
-            .header-top { font-size: 9.5px; color: #0000ff; font-weight: bold; margin-bottom: 8px; }
+            @page { size: A4; margin: 10mm 15mm 12mm 15mm; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; line-height: 1.35; padding: 10px; background: #fff; }
+            .header-top { font-size: 8pt; color: #4355a2; font-family: Arial, sans-serif; margin-bottom: 2px; font-weight: normal; }
             
             .logo-container { text-align: center; margin-bottom: 12px; }
-            .logo-title { font-size: 26px; font-weight: 900; color: #0044bb; letter-spacing: -1px; line-height: 1; }
-            .logo-subtitle { font-size: 10px; font-weight: bold; color: #0044bb; text-transform: uppercase; margin-top: 1px; }
+            .logo-img { height: 46px; object-fit: contain; }
 
-            .banner { background-color: #0044bb; color: #ffffff; font-weight: bold; font-size: 13px; text-transform: uppercase; padding: 5px 10px; display: flex; align-items: center; justify-content: flex-start; gap: 8px; border-radius: 2px; margin-bottom: 12px; }
-            .banner-arrow { font-size: 16px; font-weight: bold; margin-right: 6px; }
+            .banner-container { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 12px; }
+            .banner-arrow-img { height: 26px; width: 26px; object-fit: contain; }
+            .banner-banner-img { height: 26px; object-fit: contain; }
 
-            table.report-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 10px; }
-            table.report-table th, table.report-table td { border: 1px solid #777; padding: 4px 7px; text-align: left; }
-            table.report-table td.label-col { width: 34%; color: #000; font-weight: normal; background-color: #fff; }
-            table.report-table td.val-col { width: 66%; color: #0033aa; font-weight: bold; }
+            table.report-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 9.5pt; }
+            table.report-table th, table.report-table td { border: 1px solid #777777; padding: 3.5px 7px; text-align: left; vertical-align: middle; }
+            table.report-table td.label-col { width: 38%; color: #000000; font-weight: normal; background-color: #ffffff; }
+            table.report-table td.val-col { width: 62%; color: #0050b3; font-style: italic; font-weight: bold; }
 
-            .section-box { margin-bottom: 10px; }
-            .section-title { font-size: 10px; font-weight: normal; margin-bottom: 3px; color: #000; }
-            .text-box { border: 1px solid #555; min-height: 48px; padding: 6px; font-size: 10px; color: #000; background: #fff; border-radius: 2px; white-space: pre-wrap; }
+            .section-box { margin-bottom: 9px; }
+            .section-title { font-size: 9.5pt; font-weight: normal; margin-bottom: 2px; color: #000000; }
+            .text-box { border: 1px solid #777777; min-height: 52px; padding: 6px 8px; font-size: 9pt; color: #000000; background: #ffffff; white-space: pre-wrap; line-height: 1.35; }
 
-            .footer-date { text-align: center; font-size: 10px; color: #0033aa; font-weight: bold; margin-top: 20px; margin-bottom: 25px; }
-            .signatures { display: flex; justify-content: space-around; text-align: center; margin-top: 25px; font-size: 10px; color: #0033aa; font-weight: bold; }
+            .footer-date { text-align: center; font-size: 9.5pt; color: #0050b3; font-weight: bold; font-style: italic; margin-top: 22px; margin-bottom: 28px; }
+            .signatures { display: flex; justify-content: space-around; text-align: center; margin-top: 25px; font-size: 9pt; color: #000000; }
             .signature-block { width: 44%; }
-            .signature-line { border-top: 1px solid #000; margin-top: 35px; padding-top: 4px; }
+            .signature-line { border-top: 1px solid #000000; margin-top: 35px; padding-top: 4px; font-weight: bold; }
 
-            .photo-section { margin-top: 20px; text-align: center; page-break-inside: avoid; }
-            .photo-section h5 { font-size: 10px; color: #0033aa; font-weight: bold; margin-bottom: 8px; text-align: center; }
-            .photo-img { max-width: 85%; max-height: 240px; border: 1px solid #bbb; border-radius: 4px; object-fit: contain; }
+            .photo-section { margin-top: 22px; text-align: center; page-break-inside: avoid; }
+            .photo-section h5 { font-size: 9.5pt; color: #0050b3; font-weight: bold; font-style: italic; margin-bottom: 8px; text-align: center; }
+            .photo-img { max-width: 85%; max-height: 240px; border: 1px solid #bbbbbb; border-radius: 4px; object-fit: contain; }
           </style>
         </head>
         <body>
           <div class="header-top">Classificação: RESTRITA</div>
 
           <div class="logo-container">
-            <div class="logo-title">soma</div>
-            <div class="logo-subtitle">SEBRAE</div>
+            <img src="${REPORT_LOGO_B64}" class="logo-img" alt="som+a SEBRAE" />
           </div>
 
-          <div class="banner">
-            <span class="banner-arrow">↘</span> RELATÓRIO DE PRESTAÇÃO DE SERVIÇO
+          <div class="banner-container">
+            <img src="${REPORT_ARROW_B64}" class="banner-arrow-img" alt="↘" />
+            <img src="${REPORT_BANNER_B64}" class="banner-banner-img" alt="RELATÓRIO DE PRESTAÇÃO DE SERVIÇO" />
           </div>
 
           <table class="report-table">
@@ -299,7 +361,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
 
           <div class="section-box">
             <div class="section-title">Apontamentos do cliente (observações do cliente):</div>
-            <div class="text-box">${formData.apontamentos_cliente || formData.observacoes || ''}</div>
+            <div class="text-box">${formData.apontamentos_cliente || ''}</div>
           </div>
 
           <div class="section-box">
@@ -309,7 +371,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
 
           <div class="section-box">
             <div class="section-title">Resumo dos assuntos discutidos:</div>
-            <div class="text-box">${formData.resumo_assuntos || formData.objetivo_atendimento || ''}</div>
+            <div class="text-box">${formData.resumo_assuntos || ''}</div>
           </div>
 
           <div class="section-box">
@@ -318,18 +380,20 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
           </div>
 
           <div class="footer-date">
-            ${formData.municipio || 'São Paulo'}, ${new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            ${cidadeRodape}, ${dataExtenso}
           </div>
 
           <div class="signatures">
             <div class="signature-block">
               <div class="signature-line">
-                Assinatura do profissional responsável
+                ${empresaCredenciada}<br/>
+                <span style="font-weight: normal; font-size: 8.5pt;">${profissional}</span>
               </div>
             </div>
             <div class="signature-block">
               <div class="signature-line">
-                Assinatura do cliente atendido
+                ${nomeCliente}<br/>
+                <span style="font-weight: normal; font-size: 8.5pt;">Cliente - CNPJ: ${cnpjCliente}</span>
               </div>
             </div>
           </div>
@@ -379,7 +443,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               RAE: {project.codigo_rae || 'Não informado'}
             </div>
             <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
-              {project.nome_cliente || 'Cliente Sem Nome'}
+              {formData.nome_cliente || formData.razao_social || project.nome_cliente || 'Cliente Sem Nome'}
             </h2>
           </div>
           
@@ -537,21 +601,51 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               Relatório de Prestação de Serviço (SOMA SEBRAE)
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+              <InputField 
+                label="Data do Atendimento (Execução)" 
+                type="text"
+                value={formData.data_atendimento || formData.data_prevista_inicio || ''} 
+                onChange={(v) => {
+                  handleChange('data_atendimento', v);
+                  handleChange('data_prevista_inicio', v);
+                }} 
+                placeholder="Ex: 17/08/2026 ou 2026-08-17"
+              />
+              <InputField 
+                label="Contrato Nº" 
+                value={formData.contrato_no || '070873/2026'} 
+                onChange={(v) => handleChange('contrato_no', v)} 
+              />
               <InputField 
                 label="Edital" 
-                value={formData.edital} 
+                value={formData.edital || '004/2026'} 
                 onChange={(v) => handleChange('edital', v)} 
               />
               <InputField 
                 label="Processo Nº" 
-                value={formData.processo_no} 
+                value={formData.processo_no || '1777/2025'} 
                 onChange={(v) => handleChange('processo_no', v)} 
               />
               <InputField 
                 label="Plataforma Utilizada" 
-                value={formData.plataforma_utilizada} 
+                value={formData.plataforma_utilizada || 'Plataforma Microsoft Teams'} 
                 onChange={(v) => handleChange('plataforma_utilizada', v)} 
+              />
+              <InputField 
+                label="Natureza" 
+                value={formData.natureza || 'CONSULTORIA'} 
+                onChange={(v) => handleChange('natureza', v)} 
+              />
+              <InputField 
+                label="Empresa Credenciada" 
+                value={formData.empresa_credenciada || 'AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA'} 
+                onChange={(v) => handleChange('empresa_credenciada', v)} 
+              />
+              <InputField 
+                label="Profissional Responsável" 
+                value={formData.profissional_responsavel || 'MARCO ANTONIO PAVANI'} 
+                onChange={(v) => handleChange('profissional_responsavel', v)} 
               />
             </div>
 

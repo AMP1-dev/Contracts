@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Building2, FileText, GripVertical } from 'lucide-react';
-import type { Project } from '../types/database';
+import { Building2, FileText, GripVertical, Phone, Clock, MessageSquare, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { type Project, type ProjectStatus, KANBAN_COLUMNS } from '../types/database';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,9 +10,11 @@ interface ProjectCardProps {
   project: Project;
   isOverlay?: boolean;
   onClick?: (project: Project) => void;
+  onDelete?: (projectId: string) => void;
+  onStatusChange?: (projectId: string, newStatus: ProjectStatus) => void;
 }
 
-export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
+export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusChange }: ProjectCardProps) {
   const {
     setNodeRef,
     attributes,
@@ -33,24 +35,37 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
     transform: CSS.Transform.toString(transform),
   };
 
-  const formattedDate = format(new Date(project.criado_em), "dd MMM, yyyy", { locale: ptBR });
+  let formattedDate = 'Hoje';
+  try {
+    if (project.criado_em) {
+      const d = new Date(project.criado_em);
+      if (!isNaN(d.getTime())) {
+        formattedDate = format(d, "dd MMM, yyyy", { locale: ptBR });
+      }
+    }
+  } catch (e) {
+    formattedDate = 'Hoje';
+  }
+
+  // Clean phone number for WhatsApp link
+  const rawPhone = project.telefone || project.celular || '';
+  const phoneDigits = rawPhone.replace(/\D/g, '');
+  const formattedWhatsapp = phoneDigits
+    ? phoneDigits.startsWith('55')
+      ? phoneDigits
+      : `55${phoneDigits}`
+    : null;
 
   return (
     <div
       ref={setNodeRef}
-      style={{
-        ...style,
-        touchAction: 'none',
-      }}
+      style={style}
       className={cn(
-        "group relative flex flex-col gap-3 rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:shadow-md hover:border-primary/50 select-none",
+        "group relative flex flex-col gap-3 rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:shadow-md hover:border-primary/50 select-none cursor-pointer",
         isDragging && "opacity-30 border-primary shadow-xl scale-105",
-        isOverlay && "cursor-grabbing opacity-100 shadow-2xl scale-105 rotate-2 border-primary/50 ring-2 ring-primary/20",
-        !isOverlay && "cursor-grab active:cursor-grabbing"
+        isOverlay && "cursor-grabbing opacity-100 shadow-2xl scale-105 rotate-2 border-primary/50 ring-2 ring-primary/20"
       )}
-      {...attributes}
-      {...listeners}
-      onClick={(e) => {
+      onClick={() => {
         if (!isDragging && onClick) {
           onClick(project);
         }
@@ -61,12 +76,33 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
           <h3 className="font-bold text-slate-800 text-sm leading-tight line-clamp-2">
             {project.nome_cliente || 'Cliente Sem Nome'}
           </h3>
-          <div className="text-slate-400 opacity-60 group-hover:opacity-100 transition-opacity hover:text-slate-600 shrink-0">
-            <GripVertical size={16} />
+          <div className="flex items-center gap-1 shrink-0">
+            {onDelete && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(project.id);
+                }}
+                className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                title="Excluir contrato"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+            <div
+              {...attributes}
+              {...listeners}
+              className="text-slate-400 hover:text-slate-700 p-1 cursor-grab active:cursor-grabbing rounded hover:bg-slate-100"
+              title="Arrastar card"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical size={16} />
+            </div>
           </div>
         </div>
 
-        {/* Tags / Badges (Produto Aplicado & Modalidade) */}
+        {/* Badges: Programa, Modalidade, Carga Horária */}
         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
           {project.programa && (
             <span className="bg-purple-100 text-purple-800 border border-purple-200 text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">
@@ -83,9 +119,15 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
               {project.modalidade}
             </span>
           )}
+          {/* Carga Horária Badge */}
+          <span className="bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 shrink-0">
+            <Clock size={11} className="text-sky-600 shrink-0" />
+            <span>{project.horas_contratadas || 4}h</span>
+          </span>
         </div>
       </div>
 
+      {/* Info: CNPJ, RAE, Telefone + WhatsApp */}
       <div className="flex flex-col gap-1.5 mt-1">
         {project.cnpj && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
@@ -101,9 +143,33 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
             </span>
           </div>
         )}
+
+        {/* Telefone & Botão do WhatsApp */}
+        {rawPhone && (
+          <div className="flex items-center justify-between gap-1.5 text-xs text-slate-600 font-medium bg-slate-50/80 p-1.5 rounded-lg border border-slate-200/60 mt-0.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Phone size={13} className="text-emerald-600 shrink-0" />
+              <span className="truncate font-semibold text-slate-700">{rawPhone}</span>
+            </div>
+            {formattedWhatsapp && (
+              <a
+                href={`https://wa.me/${formattedWhatsapp}?text=Ol%C3%A1%20${encodeURIComponent(project.nome_cliente || '')}%2C%20sou%20seu%20consultor%20do%20Sebrae.`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2 py-1 rounded-md shadow-2xs transition-colors shrink-0 cursor-pointer"
+                title={`Chamar ${project.nome_cliente || 'cliente'} no WhatsApp`}
+              >
+                <MessageSquare size={11} className="fill-current text-white shrink-0" />
+                <span>WhatsApp</span>
+              </a>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="mt-2 flex items-center justify-between pt-3 border-t border-slate-100">
+      {/* Footer: Date & Price */}
+      <div className="mt-2 flex items-center justify-between pt-2.5 border-t border-slate-100">
         <span className="text-[11px] font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-md">
           {formattedDate}
         </span>
@@ -113,6 +179,60 @@ export function ProjectCard({ project, isOverlay, onClick }: ProjectCardProps) {
             : 'R$ 0,00'}
         </span>
       </div>
+
+      {/* Quick Move Status Selector */}
+      {onStatusChange && (
+        <div className="mt-1 flex items-center justify-between gap-1 pt-2 border-t border-slate-100/80">
+          <button
+            type="button"
+            disabled={KANBAN_COLUMNS.findIndex(c => c.id === project.status) <= 0}
+            onClick={(e) => {
+              e.stopPropagation();
+              const idx = KANBAN_COLUMNS.findIndex(c => c.id === project.status);
+              if (idx > 0) {
+                onStatusChange(project.id, KANBAN_COLUMNS[idx - 1].id);
+              }
+            }}
+            className="p-1 rounded-md text-slate-400 hover:text-purple-700 hover:bg-purple-50 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+            title="Voltar status anterior"
+          >
+            <ChevronLeft size={14} />
+          </button>
+
+          <select
+            value={project.status}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              onStatusChange(project.id, e.target.value as ProjectStatus);
+            }}
+            className="flex-1 text-[10px] font-bold bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-md py-1 px-1.5 text-slate-700 focus:outline-none cursor-pointer truncate"
+            title="Mudar status deste contrato"
+          >
+            {KANBAN_COLUMNS.map((col) => (
+              <option key={col.id} value={col.id}>
+                Fase: {col.title}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            disabled={KANBAN_COLUMNS.findIndex(c => c.id === project.status) >= KANBAN_COLUMNS.length - 1}
+            onClick={(e) => {
+              e.stopPropagation();
+              const idx = KANBAN_COLUMNS.findIndex(c => c.id === project.status);
+              if (idx < KANBAN_COLUMNS.length - 1) {
+                onStatusChange(project.id, KANBAN_COLUMNS[idx + 1].id);
+              }
+            }}
+            className="p-1 rounded-md text-slate-400 hover:text-purple-700 hover:bg-purple-50 disabled:opacity-20 disabled:pointer-events-none transition-colors shrink-0"
+            title="Avançar próximo status"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

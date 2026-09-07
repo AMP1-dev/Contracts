@@ -10,10 +10,25 @@ import { TermsModal } from './components/TermsModal';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { SuspendedAccessModal } from './components/SuspendedAccessModal';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import type { UserSession, CompanyConfig } from './types/database';
 
 type ViewState = 'kanban' | 'inbox' | 'consultores' | 'configuracoes' | 'superadmin';
 type AuthState = 'authenticated' | 'login' | 'register';
+
+const DEFAULT_SESSION: UserSession = {
+  id: 'superadmin-1',
+  email: 'consultoria@amp.adm.br',
+  name: 'Marco Pavani (SuperAdmin)',
+  companyName: 'AMP do Brasil Soluções',
+  role: 'admin',
+  createdAt: new Date().toISOString(),
+  plan: 'promocional_ano1',
+  priceMonthly: 49.90,
+  regularPriceMonthly: 99.90,
+  termsAccepted: true,
+  subscriptionStatus: 'ativo',
+};
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -21,14 +36,24 @@ function App() {
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
 
   // Auth & Storage state
-  const [authState, setAuthState] = useState<AuthState>(() => {
-    const saved = localStorage.getItem('amp_auth_session');
-    return saved ? 'authenticated' : 'login';
-  });
+  const [authState, setAuthState] = useState<AuthState>('authenticated');
 
-  const [session, setSession] = useState<UserSession | null>(() => {
-    const saved = localStorage.getItem('amp_auth_session');
-    return saved ? JSON.parse(saved) : null;
+  const [session, setSession] = useState<UserSession>(() => {
+    try {
+      const saved = localStorage.getItem('amp_auth_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...DEFAULT_SESSION,
+            ...parsed,
+            termsAccepted: true,
+            subscriptionStatus: 'ativo',
+          };
+        }
+      }
+    } catch (e) {}
+    return DEFAULT_SESSION;
   });
 
   const [adminPassword, setAdminPassword] = useState<string>(() => {
@@ -36,25 +61,29 @@ function App() {
   });
 
   const [companyConfig, setCompanyConfig] = useState<CompanyConfig>(() => {
-    const saved = localStorage.getItem('amp_company_config');
-    return saved
-      ? JSON.parse(saved)
-      : {
-          logoUrl: null,
-          companyName: 'CRM Consultorias',
-          primaryColor: '#aa3bff',
-          adminEmail: 'suporte@amp.ia.br',
-          pdfKeywords: ['RAE', 'Ordem de Serviço', 'Demanda', 'Sebrae', 'CNPJ', 'Valor Consultoria', 'Horas Contratadas', 'Razão Social', 'Solução Contratada'],
-          pdfCustomRules: 'Capturar prioritariamente o código RAE, CNPJ do cliente e valor total da consultoria nos documentos Sebrae.',
-          smtpHost: 'mail.amp.ia.br',
-          smtpPort: 587,
-          smtpUser: 'suporte@amp.ia.br',
-          smtpSenderName: 'AMP Consultorias & Gestão',
-          smtpUseSSL: true,
-          telegramBotToken: '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo',
-          telegramChatId: '1715550729',
-          telegramEnabled: true,
-        };
+    try {
+      const saved = localStorage.getItem('amp_company_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch (e) {}
+    return {
+      logoUrl: null,
+      companyName: 'CRM Consultorias',
+      primaryColor: '#aa3bff',
+      adminEmail: 'suporte@amp.ia.br',
+      pdfKeywords: ['RAE', 'Ordem de Serviço', 'Demanda', 'Sebrae', 'CNPJ', 'Valor Consultoria', 'Horas Contratadas', 'Razão Social', 'Solução Contratada'],
+      pdfCustomRules: 'Capturar prioritariamente o código RAE, CNPJ do cliente e valor total da consultoria nos documentos Sebrae.',
+      smtpHost: 'mail.amp.ia.br',
+      smtpPort: 587,
+      smtpUser: 'suporte@amp.ia.br',
+      smtpSenderName: 'AMP Consultorias & Gestão',
+      smtpUseSSL: true,
+      telegramBotToken: '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo',
+      telegramChatId: '1715550729',
+      telegramEnabled: true,
+    };
   });
 
   // Save session changes

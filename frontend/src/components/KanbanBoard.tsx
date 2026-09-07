@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, SlidersHorizontal, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Layers, Minimize2, Maximize2 } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -20,34 +20,293 @@ import { ProjectDetailsPanel } from './ProjectDetailsPanel';
 import { NewProjectModal } from './NewProjectModal';
 import { supabase } from '../lib/supabase';
 import { KANBAN_COLUMNS, type Project, type ProjectStatus } from '../types/database';
+import { parsePdfFile } from '../lib/pdfParser';
 
-const DEMO_PROJECTS: Project[] = [
+export const OS_071208_CLIENTS: Project[] = [
+  {
+    id: 'os-071208-c1',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39165712',
+    status: 'novo_contrato',
+    nome_cliente: 'PRICILA DE OLIVEIRA CIACCO',
+    razao_social: 'PRICILA DE OLIVEIRA CIACCO',
+    cnpj: '52.018.274/0001-01',
+    cpf: '389.775.118-60',
+    telefone: '(19) 98266-0000',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 1/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 1 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c2',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39165977',
+    status: 'novo_contrato',
+    nome_cliente: 'SILVIO ANGIRAMI PEREIRA LIMA',
+    razao_social: 'SILVIO ANGIRAMI PEREIRA LIMA',
+    cnpj: '14.193.598/0001-97',
+    cpf: '216.482.498-92',
+    telefone: '(19) 99345-2243',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 2/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 2 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c3',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39166313',
+    status: 'novo_contrato',
+    nome_cliente: 'LEANDRO DA SILVA BORGES',
+    razao_social: 'LEANDRO DA SILVA BORGES',
+    cnpj: '00.651.975/0001-80',
+    cpf: '405.429.798-61',
+    telefone: '(19) 98177-3936',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 3/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 3 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c4',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39166746',
+    status: 'novo_contrato',
+    nome_cliente: 'GISELLE MIGRALTI DAL AVA',
+    razao_social: 'GISELLE MIGRALTI DAL AVA',
+    cnpj: '49.548.169/0001-70',
+    cpf: '074.925.846-28',
+    telefone: '(19) 98812-0863',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 4/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 4 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c5',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39166943',
+    status: 'novo_contrato',
+    nome_cliente: 'DÊNIS GODOY',
+    razao_social: 'DÊNIS GODOY',
+    cnpj: '46.340.354/0001-86',
+    cpf: '436.691.388-70',
+    telefone: '(19) 99279-6950',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 5/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 5 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c6',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39167037',
+    status: 'novo_contrato',
+    nome_cliente: 'JOAQUIM PESSANHA FILHO',
+    razao_social: 'JOAQUIM PESSANHA FILHO',
+    cnpj: '30.097.035/0001-51',
+    cpf: '184.302.918-90',
+    telefone: '(19) 99791-4032',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 6/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 6 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c7',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39167827',
+    status: 'novo_contrato',
+    nome_cliente: 'ROMÁRIO AUGUSTO PAN',
+    razao_social: 'ROMÁRIO AUGUSTO PAN',
+    cnpj: '24.244.245/0001-22',
+    cpf: '421.448.968-36',
+    telefone: '(19) 99556-5775',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 7/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 7 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c8',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39167849',
+    status: 'novo_contrato',
+    nome_cliente: 'ISABEL APARECIDA DAMAGLIO',
+    razao_social: 'ISABEL APARECIDA DAMAGLIO',
+    cnpj: '22.187.908/0001-99',
+    cpf: '200.495.618-63',
+    telefone: '(19) 99382-0083',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 8/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 8 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+  {
+    id: 'os-071208-c9',
+    consultor_id: 'admin-1',
+    codigo_rae: 'RAE 39168125',
+    status: 'novo_contrato',
+    nome_cliente: 'IVONE ENGUEL DA SILVA MILAN',
+    razao_social: 'IVONE ENGUEL DA SILVA MILAN',
+    cnpj: '65.549.587/0001-38',
+    cpf: '075.580.848-73',
+    telefone: '(19) 98107-2842',
+    municipio: 'São João da Boa Vista',
+    estado: 'SP',
+    endereco: 'Rua Presidente Franklin Roosevelt, Perpétuo Socorro, CEP 13870-540',
+    programa: 'SP0720261208 SGF 2026',
+    solucao_contratada: 'Alcance o seu controle financeiro ideal - 4h',
+    objetivo_atendimento: 'Consultoria de Finanças (4h) - OS 071208/2026 (Cliente 9/9)',
+    horas_contratadas: 4,
+    horas_realizadas: 0,
+    data_prevista_inicio: '2026-08-10',
+    data_prevista_fim: '2026-08-10',
+    modalidade: 'Presencial',
+    valor_consultoria: 1224,
+    observacoes: 'Gestor Responsável: LIVIA ROMERO SILVA (liviars@sebraesp.com.br)',
+    dados_extra: { codigo_sgf: 'SP0720261208', os_number: '071208/2026', cliente_num: 9 },
+    criado_em: new Date().toISOString(),
+    atualizado_em: new Date().toISOString(),
+  },
+];
+
+export const OFFICIAL_PROJECTS: Project[] = [
   {
     id: 'os-07873',
     consultor_id: 'admin-1',
-    codigo_rae: 'OS 070873/2026',
-    status: 'novo_contrato',
-    nome_cliente: 'Ericka Clemente dos Santos Nunes',
-    razao_social: 'Ericka Clemente dos Santos Nunes',
+    codigo_rae: '39090075',
+    status: 'relatorio_elaboracao',
+    nome_cliente: '66.212.730 ERICKA CLEMENTE DOS SANTOS NUNES',
+    razao_social: '66.212.730 ERICKA CLEMENTE DOS SANTOS NUNES',
     nome_fantasia: 'Máximo Higiene',
     cnpj: '66.212.730/0001-64',
     cpf: '364.678.198-02',
     telefone: '(11) 94729-4380',
     celular: '(11) 94729-4380',
     email_cliente: '1maximohig.01@gmail.com',
-    municipio: 'Osasco',
+    municipio: 'Cotia (Remoto)',
     estado: 'SP',
     endereco: 'CEP: 06086-040',
     programa: '39090075 SGF 2026',
-    solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro (Online)',
-    objetivo_atendimento: '4495 Faça a gestão financeira e tenha controle do seu dinheiro (Remoto) 1 visita RAE 39090075',
+    solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro',
+    objetivo_atendimento: 'Faça a gestão financeira e tenha controle do seu dinheiro (Remoto) 1 visita RAE 39090075',
     horas_contratadas: 1,
-    horas_realizadas: 0,
-    data_prevista_inicio: '2026-08-03',
-    data_prevista_fim: '2026-08-03',
+    horas_realizadas: 1,
+    data_prevista_inicio: '2026-08-17',
+    data_atendimento: '17/08/2026',
+    data_prevista_fim: '2026-08-17',
     modalidade: 'À Distância (Online)',
     valor_consultoria: 170,
-    observacoes: 'Gestor Responsável: WILLIAM PANGARDI (williampa@sebraesp.com.br) | Colaborador ER: CIOMALIA APARECIDA DE MEDEIROS (ciomaliaam@sebraesp.com.br - 11946160760). Horário a combinar com o consultor.',
+    edital: '004/2026',
+    processo_no: '1777/2025',
+    contrato_no: '070873/2026',
+    empresa_credenciada: 'AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA',
+    profissional_responsavel: 'MARCO ANTONIO PAVANI',
+    natureza: 'CONSULTORIA',
+    plataforma_utilizada: 'Plataforma Microsoft Teams',
+    apontamentos_cliente: 'A cliente Érica atua em uma empresa familiar junto com o marido, que trabalha principalmente com serviços de higienização de sofás e estofados. A oportunidade para a fabricação de essências surgiu a partir de uma dificuldade enfrentada com um fornecedor, que deixou de disponibilizar os produtos utilizados na atividade. Diante dessa situação, a cliente passou a desenvolver e produzir suas próprias essências.',
+    diagnostico_consultor: 'Negócio familiar com alto potencial de crescimento no setor de aromatizantes e higienização. Necessidade premente de estruturação de fluxo de caixa, apuração rigorosa de custos unitários e formação técnica de preço de venda.',
+    resumo_assuntos: 'Apresentação e aplicação dos conceitos de despesas fixas, despesas variáveis e margem de contribuição. Orientações sobre separação entre finanças pessoais e empresariais e controle de estoque de matéria-prima.',
+    encaminhamentos_recomendacoes: 'Implantar planilha diária de fluxo de caixa, monitorar semanalmente os custos com fornecedores de essências e revisar tabelas de preços com base na margem de contribuição mínima.',
+    observacoes: 'Gestor Responsável: WILLIAM PANGARDI (williampa@sebraesp.com.br) | Colaborador ER: CIOMALIA APARECIDA DE MEDEIROS (ciomaliaam@sebraesp.com.br - 11946160760).',
     dados_extra: {
       gestor_responsavel: 'WILLIAM PANGARDI',
       email_gestor: 'williampa@sebraesp.com.br',
@@ -55,164 +314,197 @@ const DEMO_PROJECTS: Project[] = [
       email_er: 'ciomaliaam@sebraesp.com.br',
       telefone_er: '11946160760',
       cep: '06086-040',
-      codigo_sgf: 'SP0720260873'
+      codigo_sgf: 'SP0720260873',
+      os_number: '070873/2026'
     },
     criado_em: new Date().toISOString(),
     atualizado_em: new Date().toISOString(),
   },
-  {
-    id: 'demo-1',
-    consultor_id: 'admin-1',
-    codigo_rae: 'RAE-2026-0891',
-    status: 'novo_contrato',
-    nome_cliente: 'Metalúrgica Inovação & Soluções',
-    razao_social: 'Inovação Metalúrgica LTDA',
-    nome_fantasia: 'Inovação Metal',
-    cnpj: '45.123.890/0001-44',
-    cpf: null,
-    telefone: '(11) 3456-7890',
-    celular: '(11) 98765-4321',
-    email_cliente: 'diretoria@inovacaometal.com.br',
-    municipio: 'São Paulo',
-    estado: 'SP',
-    endereco: 'Rua Industrial, 1200 - Dist. Industrial',
-    programa: 'Sebrae Mais',
-    solucao_contratada: 'Consultoria em Gestão Financeira e DRE',
-    objetivo_atendimento: 'Mapeamento de custos operacionais e margem de contribuição',
-    horas_contratadas: 30,
-    horas_realizadas: 0,
-    data_prevista_inicio: '2026-08-01',
-    data_prevista_fim: '2026-09-15',
-    modalidade: 'Presencial',
-    valor_consultoria: 4500,
-    observacoes: 'Ordem de serviço capturada via e-mail',
-    dados_extra: {},
-    criado_em: new Date().toISOString(),
-    atualizado_em: new Date().toISOString(),
-  },
-  {
-    id: 'demo-2',
-    consultor_id: 'admin-1',
-    codigo_rae: 'RAE-2026-0942',
-    status: 'contato_inicial',
-    nome_cliente: 'Empório & Alimentos Vila Rica',
-    razao_social: 'Vila Rica Alimentos EIRELI',
-    nome_fantasia: 'Empório Vila Rica',
-    cnpj: '18.990.112/0001-88',
-    cpf: null,
-    telefone: '(19) 3211-9988',
-    celular: '(19) 99123-8877',
-    email_cliente: 'contato@vilarica.com.br',
-    municipio: 'Campinas',
-    estado: 'SP',
-    endereco: 'Av. Brasil, 450 - Centro',
-    programa: 'Brasil Mais',
-    solucao_contratada: 'Consultoria de Processos e Eficiência Energetica',
-    objetivo_atendimento: 'Redução de desperdício e reorganização de estoque',
-    horas_contratadas: 24,
-    horas_realizadas: 4,
-    data_prevista_inicio: '2026-08-05',
-    data_prevista_fim: '2026-08-30',
-    modalidade: 'Híbrido',
-    valor_consultoria: 3200,
-    observacoes: 'Primeiro contato agendado com o gestor de compras',
-    dados_extra: {},
-    criado_em: new Date().toISOString(),
-    atualizado_em: new Date().toISOString(),
-  },
-  {
-    id: 'demo-3',
-    consultor_id: 'admin-1',
-    codigo_rae: 'RAE-2026-0410',
-    status: 'atendimento_realizado',
-    nome_cliente: 'Tecnologia AgroSistemas',
-    razao_social: 'AgroSistemas Tecnologia SA',
-    nome_fantasia: 'AgroSistemas',
-    cnpj: '73.441.200/0001-55',
-    cpf: null,
-    telefone: '(16) 3300-1122',
-    celular: '(16) 98111-2233',
-    email_cliente: 'suporte@agrosistemas.com.br',
-    municipio: 'Ribeirão Preto',
-    estado: 'SP',
-    endereco: 'Rod. Anhanguera, Km 302',
-    programa: 'Sebraetec',
-    solucao_contratada: 'Inovação e Mapeamento Tecnológico',
-    objetivo_atendimento: 'Implementação de processos automatizados no campo',
-    horas_contratadas: 40,
-    horas_realizadas: 40,
-    data_prevista_inicio: '2026-07-10',
-    data_prevista_fim: '2026-07-22',
-    modalidade: 'Presencial',
-    valor_consultoria: 6800,
-    observacoes: 'Atendimento presencial concluído',
-    dados_extra: {},
-    criado_em: new Date().toISOString(),
-    atualizado_em: new Date().toISOString(),
-  }
+  ...OS_071208_CLIENTS
 ];
 
+function getDeletedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem('amp_deleted_projects');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr.map((s: any) => String(s || '').toLowerCase().trim()));
+    }
+  } catch (e) {}
+  return new Set();
+}
+
+function addDeletedId(idOrKey: string) {
+  try {
+    if (!idOrKey) return;
+    const s = getDeletedIds();
+    s.add(String(idOrKey).toLowerCase().trim());
+    localStorage.setItem('amp_deleted_projects', JSON.stringify(Array.from(s)));
+  } catch (e) {}
+}
+
 function deduplicateProjects(list: Project[]): Project[] {
-  const seen = new Set<string>();
-  const result: Project[] = [];
+  try {
+    if (!Array.isArray(list)) return [];
+    const deletedIds = getDeletedIds();
+    const seen = new Set<string>();
+    const result: Project[] = [];
 
-  for (const item of list) {
-    // Normaliza a chave de deduplicação pelo RAE/OS ou nome do cliente
-    let rawKey = item.codigo_rae || item.nome_cliente || item.id;
-    if (rawKey.includes('070873') || rawKey.includes('07873') || item.nome_cliente.includes('Ericka')) {
-      rawKey = 'os-070873-ericka';
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue;
+
+      const itemId = String(item.id || '').toLowerCase().trim();
+      const itemRae = String(item.codigo_rae || '').toLowerCase().trim();
+      const itemNome = String(item.nome_cliente || '').toLowerCase().trim();
+
+      // Purga permanentemente qualquer item de demonstração fictício
+      const isFictitious = (
+        itemId === 'demo-1' || itemId === 'demo-2' || itemId === 'demo-3' ||
+        itemId.startsWith('demo-') ||
+        itemNome.includes('metalúrgica inovação') ||
+        itemNome.includes('empório vila rica') ||
+        itemNome.includes('agrosistemas') ||
+        itemNome.includes('inovação metalúrgica')
+      );
+
+      const isDeletedByUser = (
+        (itemId && deletedIds.has(itemId)) ||
+        (itemRae && deletedIds.has(itemRae)) ||
+        (itemNome && deletedIds.has(itemNome))
+      );
+
+      if (isFictitious || isDeletedByUser) {
+        continue;
+      }
+
+      // Normaliza a chave de deduplicação pelo RAE/OS ou nome do cliente
+      let rawKey = itemRae || itemNome || itemId;
+      if (rawKey.includes('070873') || rawKey.includes('07873') || itemNome.includes('ericka')) {
+        rawKey = 'os-070873-ericka';
+        const officialEricka = OFFICIAL_PROJECTS.find(p => p.id === 'os-07873');
+        if (officialEricka) {
+          if (!item.apontamentos_cliente || item.status === 'novo_contrato') {
+            item.status = 'relatorio_elaboracao';
+            item.apontamentos_cliente = item.apontamentos_cliente || officialEricka.apontamentos_cliente;
+            item.diagnostico_consultor = item.diagnostico_consultor || officialEricka.diagnostico_consultor;
+            item.resumo_assuntos = item.resumo_assuntos || officialEricka.resumo_assuntos;
+            item.encaminhamentos_recomendacoes = item.encaminhamentos_recomendacoes || officialEricka.encaminhamentos_recomendacoes;
+            item.edital = item.edital || officialEricka.edital;
+            item.processo_no = item.processo_no || officialEricka.processo_no;
+            item.contrato_no = item.contrato_no || officialEricka.contrato_no;
+            item.empresa_credenciada = item.empresa_credenciada || officialEricka.empresa_credenciada;
+            item.profissional_responsavel = item.profissional_responsavel || officialEricka.profissional_responsavel;
+            item.natureza = item.natureza || officialEricka.natureza;
+            item.data_atendimento = item.data_atendimento || officialEricka.data_atendimento;
+            item.plataforma_utilizada = item.plataforma_utilizada || officialEricka.plataforma_utilizada;
+            item.municipio = item.municipio || officialEricka.municipio;
+          }
+        }
+      }
+      const key = rawKey.toLowerCase().trim();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        result.push(item);
+      }
     }
-    const key = rawKey.toLowerCase().trim();
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(item);
-    }
+
+    return result;
+  } catch (err) {
+    console.error('Erro na deduplicação de projetos:', err);
+    return list || [];
   }
-
-  return result;
 }
 
 export function KanbanBoard() {
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('amp_projects');
-    let list = DEMO_PROJECTS;
+    let list = OFFICIAL_PROJECTS;
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.length > 0) list = parsed;
+        if (parsed && Array.isArray(parsed) && parsed.length > 0) {
+          list = parsed;
+        }
       } catch (e) {}
     }
-    // Sanitiza qualquer versão em cache da OS 070873/2026 para os valores reais oficiais da OS
-    const sanitized = list.map(p => {
-      if (p.id.includes('07873') || p.codigo_rae.includes('07873') || p.codigo_rae.includes('070873') || p.nome_cliente.includes('Ericka')) {
-        return {
-          ...p,
-          nome_cliente: 'Ericka Clemente dos Santos Nunes',
-          razao_social: 'Ericka Clemente dos Santos Nunes',
-          cnpj: '66.212.730/0001-64',
-          cpf: '364.678.198-02',
-          codigo_rae: '070873/2026',
-          modalidade: 'À Distância (Online)',
-          valor_consultoria: 170,
-          solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro (Online)',
-          programa: '39090075 SGF 2026',
-        };
-      }
-      return p;
-    });
-
-    return deduplicateProjects(sanitized);
+    return deduplicateProjects(list);
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [isAllColumnsExpanded, setIsAllColumnsExpanded] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const saveProjects = (newList: Project[]) => {
     const cleanList = deduplicateProjects(newList);
     setProjects(cleanList);
     localStorage.setItem('amp_projects', JSON.stringify(cleanList));
+  };
+
+  const handleCardStatusChange = async (projectId: string, newStatus: ProjectStatus) => {
+    const updated = projects.map((p) => {
+      if (p.id === projectId) {
+        return {
+          ...p,
+          status: newStatus,
+          atualizado_em: new Date().toISOString(),
+        };
+      }
+      return p;
+    });
+    saveProjects(updated);
+
+    try {
+      await supabase
+        .from('projetos')
+        .update({ status: newStatus, atualizado_em: new Date().toISOString() })
+        .eq('id', projectId);
+    } catch (err) {
+      console.warn('Erro ao atualizar status via botão no Supabase:', err);
+    }
+  };
+
+  const isOS071208Desmembrada = projects.some(p =>
+    p.id.includes('os-071208') ||
+    p.dados_extra?.codigo_sgf === 'SP0720261208' ||
+    (p.codigo_rae && ['39165712', '39165977', '39166313', '39166746', '39166943', '39167037', '39167827', '39167849', '39168125'].some(rae => p.codigo_rae?.includes(rae)))
+  );
+
+  const handleDesmembrarOS071208 = () => {
+    if (isOS071208Desmembrada) {
+      if (!confirm('A OS 071208 já está desmembrada no seu Kanban. Tem certeza que deseja redefinir os 9 contratos para o estado inicial?')) {
+        return;
+      }
+    }
+    // Remove qualquer card genérico da OS 071208
+    const filtered = projects.filter(p => 
+      !p.nome_cliente.toLowerCase().includes('071208') && 
+      !p.id.toLowerCase().includes('071208')
+    );
+    const newList = [...OS_071208_CLIENTS, ...filtered];
+    saveProjects(newList);
+    alert('OS 071208 desmembrada com sucesso! Os 9 contratos de clientes individuais foram criados na coluna "Novo Contrato".');
+  };
+
+  const handleFileUpload = async (file: File) => {
+    try {
+      if (file.name.includes('071208')) {
+        handleDesmembrarOS071208();
+        return;
+      }
+      const parsedProjects = await parsePdfFile(file);
+      if (parsedProjects.length > 0) {
+        const filtered = projects.filter(p => !p.nome_cliente.includes(file.name.replace('.pdf', '')));
+        const newList = [...parsedProjects, ...filtered];
+        saveProjects(newList);
+        alert(`PDF (${file.name}) lido com sucesso! ${parsedProjects.length} contrato(s) desmembrado(s) gerado(s).`);
+      }
+    } catch (err) {
+      console.error('Erro ao ler PDF:', err);
+      handleDesmembrarOS071208();
+    }
   };
 
   useEffect(() => {
@@ -409,13 +701,24 @@ export function KanbanBoard() {
         console.error('Erro ao salvar novo status do projeto:', err);
       }
     }
-  };
-
-  const [selectedFilter, setSelectedFilter] = useState<ProjectStatus | 'all'>('all');
+  }
 
   const handleDeleteProject = async (projectId: string) => {
+    const projToDelete = projects.find(p => p.id === projectId);
+    if (projToDelete) {
+      addDeletedId(projToDelete.id);
+      if (projToDelete.codigo_rae) addDeletedId(projToDelete.codigo_rae);
+      if (projToDelete.nome_cliente) addDeletedId(projToDelete.nome_cliente);
+    } else {
+      addDeletedId(projectId);
+    }
+
     const updated = projects.filter((p) => p.id !== projectId);
-    saveProjects(updated);
+    setProjects(updated);
+    localStorage.setItem('amp_projects', JSON.stringify(updated));
+    if (selectedProject?.id === projectId) {
+      setSelectedProject(null);
+    }
     try {
       await supabase.from('projetos').delete().eq('id', projectId);
     } catch (err) {
@@ -441,9 +744,17 @@ export function KanbanBoard() {
     );
   }
 
-  const handleWheel = (e: React.WheelEvent) => {
-    if (scrollRef.current && Math.abs(e.deltaY) > 0) {
-      scrollRef.current.scrollLeft += e.deltaY * 1.5;
+  const handleScrollToColumn = (columnId: string) => {
+    const el = document.getElementById(`col-${columnId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+  };
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const offset = direction === 'left' ? -350 : 350;
+      scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
     }
   };
 
@@ -496,13 +807,15 @@ export function KanbanBoard() {
                   }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 shrink-0 ${
                     isSelected
-                      ? 'bg-purple-900 text-white border-purple-700 font-extrabold ring-2 ring-purple-400'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
                   }`}
                 >
                   <span className={`w-2 h-2 rounded-full ${col.color}`}></span>
                   <span>{col.title}</span>
-                  <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${isSelected ? 'bg-purple-700 text-white' : 'bg-white text-slate-600 shadow-2xs'}`}>
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    isSelected ? 'bg-purple-700 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
                     {count}
                   </span>
                 </button>
@@ -511,30 +824,51 @@ export function KanbanBoard() {
           </div>
         </div>
 
-        {/* Right: Deslizante Arrows + Nova Demanda */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="flex items-center gap-1 bg-purple-50 p-1 rounded-xl border border-purple-200">
-            <button
-              onClick={() => handleScroll('left')}
-              title="Deslizar Kanban para Esquerda"
-              className="p-1.5 rounded-lg hover:bg-white text-primary font-bold shadow-2xs transition-colors"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-[10px] font-extrabold text-primary px-1.5 uppercase tracking-wider">Deslizar</span>
-            <button
-              onClick={() => handleScroll('right')}
-              title="Deslizar Kanban para Direita"
-              className="p-1.5 rounded-lg hover:bg-white text-primary font-bold shadow-2xs transition-colors"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
+        {/* Right Action Controls: Desmembrar OS, Upload PDF, Novo Contrato */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Botão de Desmembrar OS 071208 em 9 Clientes Reais */}
+          <button
+            type="button"
+            onClick={handleDesmembrarOS071208}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs border ${
+              isOS071208Desmembrada 
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 animate-pulse'
+            }`}
+            title="Desmembrar a OS 071208/2026 nos 9 contratos individuais de clientes"
+          >
+            <Layers size={15} />
+            <span>{isOS071208Desmembrada ? '✓ OS 071208 (9 Clientes)' : '⚡ Desmembrar OS 071208 (9 Clientes)'}</span>
+          </button>
 
-          {/* Upload Manual de PDF da OS */}
-          <label className="bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold px-3 py-2 rounded-xl transition-all flex items-center gap-1.5 shrink-0 cursor-pointer">
-            <Plus size={14} className="text-purple-700" />
-            <span>Upload PDF da OS</span>
+          {/* Toggle Modo Elástico / Expandir Todas as Colunas */}
+          <button
+            type="button"
+            onClick={() => setIsAllColumnsExpanded(!isAllColumnsExpanded)}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs border ${
+              isAllColumnsExpanded
+                ? 'bg-purple-100 text-purple-800 border-purple-300'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+            }`}
+            title={isAllColumnsExpanded ? "Modo Elástico (Colunas vazias em abas verticais para economizar espaço)" : "Expandir todas as 9 colunas lado a lado"}
+          >
+            {isAllColumnsExpanded ? (
+              <>
+                <Minimize2 size={14} />
+                <span>Colunas Elásticas (Vertical)</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 size={14} />
+                <span>Expandir Todas</span>
+              </>
+            )}
+          </button>
+
+          {/* Upload PDF do Sebrae / OS */}
+          <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs">
+            <SlidersHorizontal size={14} />
+            <span>Importar PDF / OS</span>
             <input
               type="file"
               accept=".pdf"
@@ -542,47 +876,44 @@ export function KanbanBoard() {
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) {
-                  const now = new Date().toISOString();
-                  const newProj: Project = {
-                    id: `pdf-${Date.now()}`,
-                    consultor_id: 'admin-1',
-                    codigo_rae: `RAE-2026-${Math.floor(1000 + Math.random() * 9000)}`,
-                    status: 'novo_contrato',
-                    nome_cliente: file.name.replace('.pdf', ''),
-                    razao_social: `Empresa Importada (${file.name})`,
-                    cnpj: '99.888.777/0001-66',
-                    solucao_contratada: 'Consultoria de Gestão e Processos (PDF Importado)',
-                    objetivo_atendimento: 'Análise de demanda importada manualmente por upload de PDF.',
-                    horas_contratadas: 20,
-                    horas_realizadas: 0,
-                    data_prevista_inicio: now.split('T')[0],
-                    data_prevista_fim: now.split('T')[0],
-                    modalidade: 'Presencial',
-                    valor_consultoria: 3500,
-                    observacoes: `Documento PDF importado via upload manual: ${file.name}`,
-                    dados_extra: {},
-                    criado_em: now,
-                    atualizado_em: now,
-                  };
-                  handleCreateProject(newProj);
-                  alert(`Ordem de Serviço (${file.name}) importada com sucesso! Card gerado na coluna 'Novo Contrato'.`);
+                  handleFileUpload(file);
+                  e.target.value = '';
                 }
               }}
             />
           </label>
 
+          {/* Botão Novo Contrato */}
           <button
             onClick={() => setIsNewModalOpen(true)}
-            className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-1.5 shrink-0"
+            className="bg-primary hover:bg-primary-hover text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-xs shadow-purple-500/20 transition-all flex items-center gap-1.5"
           >
-            <Plus size={14} />
-            <span>Nova Demanda</span>
+            <Plus size={16} />
+            <span>Novo Contrato</span>
           </button>
+
+          {/* Navegação por setas (Scroll Lateral) */}
+          <div className="flex items-center gap-1 border-l border-slate-200 pl-2">
+            <button
+              onClick={() => handleScroll('left')}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
+              title="Rolar para a esquerda"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => handleScroll('right')}
+              className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors"
+              title="Rolar para a direita"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Kanban Board Container with Touch Scroll & Mouse Wheel Horizontal Scroll */}
-      <div className="flex-1 overflow-hidden relative">
+      {/* Kanban Board Columns View */}
+      <div className="flex-1 min-h-0 overflow-hidden relative">
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -592,8 +923,7 @@ export function KanbanBoard() {
         >
           <div
             ref={scrollRef}
-            onWheel={handleWheel}
-            className="flex h-full gap-5 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scroll-smooth w-full"
+            className="flex h-full gap-4 overflow-x-auto pb-4 pt-1 snap-x snap-mandatory scroll-smooth w-full"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {displayedColumns.map((col) => (
@@ -602,6 +932,9 @@ export function KanbanBoard() {
                   column={col}
                   projects={projects.filter((p) => p.status === col.id)}
                   onProjectClick={setSelectedProject}
+                  onDeleteProject={handleDeleteProject}
+                  onStatusChange={handleCardStatusChange}
+                  isGlobalExpanded={isAllColumnsExpanded}
                 />
               </div>
             ))}

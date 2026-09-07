@@ -46,6 +46,10 @@ export interface Project {
   edital?: string | null;
   processo_no?: string | null;
   contrato_no?: string | null;
+  empresa_credenciada?: string | null;
+  profissional_responsavel?: string | null;
+  natureza?: string | null;
+  data_atendimento?: string | null;
   plataforma_utilizada?: string | null;
   apontamentos_cliente?: string | null;
   diagnostico_consultor?: string | null;
