@@ -83,6 +83,8 @@ function App() {
       telegramBotToken: '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo',
       telegramChatId: '1715550729',
       telegramEnabled: true,
+      autentiqueToken: '3646915c7065251ab37b9591a708e08f55d08baadd716bb07623f860fc0b540e',
+      autentiqueSandbox: false,
     };
   });
 

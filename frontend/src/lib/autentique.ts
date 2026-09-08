@@ -40,7 +40,7 @@ export async function testAutentiqueConnection(token: string): Promise<{ ok: boo
 
   const query = `
     query {
-      viewer {
+      me {
         id
         name
         email
@@ -63,10 +63,10 @@ export async function testAutentiqueConnection(token: string): Promise<{ ok: boo
       return { ok: false, message: data.errors[0].message || 'Erro de autenticação na Autentique.' };
     }
 
-    if (data.data?.viewer?.name) {
+    if (data.data?.me?.name) {
       return {
         ok: true,
-        message: `Conectado com sucesso à organização de: ${data.data.viewer.name} (${data.data.viewer.email})`,
+        message: `Conectado com sucesso à conta de: ${data.data.me.name} (${data.data.me.email})`,
       };
     }
 
