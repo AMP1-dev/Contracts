@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { CompanyConfig, UserSession } from '../types/database';
-import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server, Send, Bell } from 'lucide-react';
+import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server, Send, Bell, FileSignature, CheckCircle2 } from 'lucide-react';
 import { sendTelegramNotification } from '../lib/telegram';
+import { testAutentiqueConnection } from '../lib/autentique';
 
 interface SettingsPanelProps {
   config: CompanyConfig;
@@ -11,7 +12,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePassword }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords' | 'smtp' | 'telegram'>('logo');
+  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords' | 'smtp' | 'telegram' | 'autentique'>('logo');
   
   // Logo & Branding state
   const [logoUrl, setLogoUrl] = useState(config.logoUrl || '');
@@ -46,6 +47,40 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
   const [telegramEnabled, setTelegramEnabled] = useState(config.telegramEnabled ?? true);
   const [telegramSuccessMsg, setTelegramSuccessMsg] = useState('');
   const [isTestingTelegram, setIsTestingTelegram] = useState(false);
+
+  // Autentique & GOV.br State
+  const [autentiqueToken, setAutentiqueToken] = useState(config.autentiqueToken || '');
+  const [autentiqueSandbox, setAutentiqueSandbox] = useState(config.autentiqueSandbox ?? true);
+  const [autentiqueSuccessMsg, setAutentiqueSuccessMsg] = useState('');
+  const [isTestingAutentique, setIsTestingAutentique] = useState(false);
+
+  const handleSaveAutentique = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateConfig({
+      ...config,
+      autentiqueToken: autentiqueToken.trim(),
+      autentiqueSandbox,
+    });
+    setAutentiqueSuccessMsg('Configurações do Autentique salvas com sucesso!');
+    setTimeout(() => setAutentiqueSuccessMsg(''), 3000);
+  };
+
+  const handleTestAutentique = async () => {
+    if (!autentiqueToken.trim()) {
+      alert('Por favor, informe a Chave de API (Token) do Autentique.');
+      return;
+    }
+
+    setIsTestingAutentique(true);
+    const result = await testAutentiqueConnection(autentiqueToken.trim());
+    setIsTestingAutentique(false);
+
+    if (result.ok) {
+      alert(`✅ ${result.message}`);
+    } else {
+      alert(`❌ Falha na conexão com o Autentique:\n${result.message || 'Token inválido ou sem permissão.'}`);
+    }
+  };
 
   const handleSaveTelegram = (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,6 +241,18 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
         >
           <Bell size={18} />
           <span>Telegram (Alertas no Celular)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('autentique')}
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'autentique'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <FileSignature size={18} />
+          <span>Assinatura Digital (Autentique & GOV.BR)</span>
         </button>
 
         <button
@@ -694,6 +741,147 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Tab: Autentique & GOV.br Digital Signatures */}
+        {activeTab === 'autentique' && (
+          <div className="max-w-3xl space-y-8">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Assinatura Digital de Documentos SOMA Sebrae</h2>
+              <p className="text-xs text-slate-500">
+                Configure a integração com o <strong>Autentique</strong> ou utilize o <strong>GOV.BR (100% Gratuito)</strong> para coletar assinaturas dos seus clientes com validade jurídica.
+              </p>
+            </div>
+
+            {/* Informational Banner: GOV.BR vs Autentique */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm mb-1">
+                  <CheckCircle2 size={18} className="text-emerald-600" />
+                  <span>Opção 1: GOV.BR (Zero Custo)</span>
+                </div>
+                <p className="text-xs text-emerald-700 leading-relaxed mb-3">
+                  100% Gratuito e ilimitado via <strong>Assinador Oficial ITI</strong> (Lei Federal 14.063/2020). O cliente assina com a conta prata/ouro Gov.br pelo celular ou PC.
+                </p>
+                <a
+                  href="https://assinador.iti.br"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 underline"
+                >
+                  Acessar assinador.iti.br &rarr;
+                </a>
+              </div>
+
+              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl">
+                <div className="flex items-center gap-2 text-indigo-800 font-bold text-sm mb-1">
+                  <FileSignature size={18} className="text-indigo-600" />
+                  <span>Opção 2: Autentique API (Automático)</span>
+                </div>
+                <p className="text-xs text-indigo-700 leading-relaxed mb-3">
+                  Envio automático com 1 clique para WhatsApp/E-mail do cliente. Plano gratuito de 10 docs/mês ou R$ 0,06 por doc + R$ 0,12 por WhatsApp. Modo Sandbox é grátis e ilimitado.
+                </p>
+                <a
+                  href="https://painel.autentique.com.br/perfil/api"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-800 hover:text-indigo-950 underline"
+                >
+                  Obter Token no Autentique &rarr;
+                </a>
+              </div>
+            </div>
+
+            {/* Autentique Configuration Form */}
+            <form onSubmit={handleSaveAutentique} className="space-y-5 bg-slate-50/50 p-5 rounded-2xl border border-slate-200">
+              <div className="border-b border-slate-200 pb-3">
+                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <FileSignature size={16} className="text-primary" />
+                  <span>Credenciais da API Autentique</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Preencha para habilitar o envio direto pelo card da demanda no CRM
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Chave de API (Token Autentique)
+                </label>
+                <input
+                  type="password"
+                  value={autentiqueToken}
+                  onChange={(e) => setAutentiqueToken(e.target.value)}
+                  placeholder="Ex: a1b2c3d4e5f6... (Gerada no painel Autentique)"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all font-mono"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Acesse <strong>Painel Autentique &gt; Configurações &gt; API</strong> para gerar seu token mestre.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200">
+                <input
+                  type="checkbox"
+                  id="sandboxMode"
+                  checked={autentiqueSandbox}
+                  onChange={(e) => setAutentiqueSandbox(e.target.checked)}
+                  className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
+                />
+                <label htmlFor="sandboxMode" className="text-xs font-semibold text-slate-700 cursor-pointer">
+                  Modo Sandbox (Ambiente de Testes 100% Gratuito)
+                  <span className="block text-[11px] font-normal text-slate-500">
+                    Quando ativado, os documentos são criados em modo de teste e não consomem créditos da sua conta.
+                  </span>
+                </label>
+              </div>
+
+              {autentiqueSuccessMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-700 text-xs font-semibold animate-fade-in">
+                  <Check size={16} />
+                  <span>{autentiqueSuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={handleTestAutentique}
+                  disabled={isTestingAutentique || !autentiqueToken.trim()}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <Send size={15} />
+                  <span>{isTestingAutentique ? 'Testando Conexão...' : 'Testar Token'}</span>
+                </button>
+
+                <button
+                  type="submit"
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  <span>Salvar Configurações</span>
+                </button>
+              </div>
+            </form>
+
+            {/* Como funciona o fluxo GOV.BR no dia a dia */}
+            <div className="p-5 bg-white rounded-2xl border border-slate-200 space-y-3">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <span>🇧🇷 Como funciona a Assinatura Gratuita GOV.BR</span>
+              </h3>
+              <div className="space-y-2 text-xs text-slate-600">
+                <p>
+                  <strong>1. Gerar Relatório:</strong> No CRM, clique em <em>Visualizar Relatório SOMA</em> e baixe o PDF.
+                </p>
+                <p>
+                  <strong>2. Assinar pelo GOV.BR:</strong> Você (consultor) ou o cliente envia o PDF para <a href="https://assinador.iti.br" target="_blank" rel="noreferrer" className="text-primary font-bold underline">assinador.iti.br</a> e posiciona a assinatura digital.
+                </p>
+                <p>
+                  <strong>3. Devolução & Envio:</strong> O PDF assinado digitalmente possui o carimbo oficial com QR Code e código verificador ICP-Brasil / GOV.BR aceito pelo Sebrae nacional.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

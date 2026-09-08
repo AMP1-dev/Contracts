@@ -56,6 +56,11 @@ export interface Project {
   resumo_assuntos?: string | null;
   encaminhamentos_recomendacoes?: string | null;
 
+  // Integração Autentique & GOV.BR
+  autentique_document_id?: string | null;
+  autentique_status?: 'pendente' | 'assinado' | 'recusado' | null;
+  autentique_link?: string | null;
+
   dados_extra: any;
 
   criado_em: string;
@@ -124,5 +129,9 @@ export interface CompanyConfig {
   telegramBotToken?: string;
   telegramChatId?: string;
   telegramEnabled?: boolean;
+
+  // Integração Autentique
+  autentiqueToken?: string;
+  autentiqueSandbox?: boolean;
 }
 

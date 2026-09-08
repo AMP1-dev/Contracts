@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2 } from 'lucide-react';
-import type { Project } from '../types/database';
+import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check } from 'lucide-react';
+import type { Project, CompanyConfig } from '../types/database';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 import { REPORT_ARROW_B64, REPORT_BANNER_B64, REPORT_LOGO_B64 } from '../assets/reportAssets';
+import { createAutentiqueDocument } from '../lib/autentique';
 
 interface ProjectDetailsPanelProps {
   project: Project | null;
@@ -413,6 +414,97 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     setTimeout(() => printWindow.print(), 300);
   };
 
+  const [isSendingAutentique, setIsSendingAutentique] = useState(false);
+
+  // Assinatura via GOV.BR (100% Gratuita pelo Assinador ITI oficial)
+  const handleGovBrSignature = () => {
+    // 1. Abre a impressão/download do PDF SOMA
+    handlePrintReport();
+
+    // 2. Abre o assinador oficial do Governo Federal em nova aba
+    window.open('https://assinador.iti.br', '_blank');
+
+    // 3. Monta link de WhatsApp opcional com mensagem pronta para o cliente
+    const phone = (formData.celular || formData.telefone || '').replace(/\D/g, '');
+    const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
+    const msg = `Olá ${clientName}! Segue o Relatório de Prestação de Serviço Sebrae (RAE ${formData.codigo_rae || ''}) para assinatura gratuita pelo GOV.BR.\n\nVocê pode assinar em 1 minuto pelo celular ou computador através do link oficial:\nhttps://assinador.iti.br\n\nBasta entrar com sua conta Gov.br (Prata ou Ouro), carregar o documento e confirmar a assinatura digital. Qualquer dúvida estou à disposição!`;
+
+    if (phone) {
+      const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
+      const waUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
+      setTimeout(() => {
+        if (confirm('Deseja abrir o WhatsApp com a mensagem e orientações de assinatura pelo GOV.BR para o cliente?')) {
+          window.open(waUrl, '_blank');
+        }
+      }, 800);
+    }
+  };
+
+  // Envio Automático para Assinatura via Autentique API
+  const handleAutentiqueSignature = async () => {
+    let token = '';
+    let isSandbox = true;
+
+    try {
+      const saved = localStorage.getItem('amp_company_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        token = parsed.autentiqueToken || '';
+        isSandbox = parsed.autentiqueSandbox ?? true;
+      }
+    } catch (e) {}
+
+    if (!token) {
+      alert('Chave de API do Autentique não configurada!\n\nPor favor, acesse o menu "Configurações > Assinatura Digital" e insira seu Token da API Autentique.');
+      return;
+    }
+
+    const clientName = formData.nome_cliente || formData.razao_social || 'Cliente Sebrae';
+    const clientEmail = formData.email_cliente || '';
+    const clientPhone = formData.celular || formData.telefone || '';
+
+    if (!clientEmail && !clientPhone) {
+      alert('Para enviar ao Autentique, preencha o E-mail ou Celular/WhatsApp do cliente no cadastro.');
+      return;
+    }
+
+    setIsSendingAutentique(true);
+    const result = await createAutentiqueDocument({
+      token,
+      sandbox: isSandbox,
+      name: `Relatório SOMA Sebrae - RAE ${formData.codigo_rae || ''} - ${clientName}`,
+      signerName: clientName,
+      signerEmail: clientEmail || undefined,
+      signerPhone: clientPhone || undefined,
+      message: `Olá ${clientName}! Segue o Relatório da Consultoria Sebrae para sua assinatura eletrônica.`,
+    });
+    setIsSendingAutentique(false);
+
+    if (result.success) {
+      const updated = {
+        ...formData,
+        autentique_document_id: result.documentId || null,
+        autentique_status: 'pendente',
+        autentique_link: result.signUrl || null,
+      } as Project;
+
+      setFormData(updated);
+      onUpdate(updated);
+
+      let successText = `✅ Documento criado com sucesso no Autentique!\nID: ${result.documentId || 'OK'}`;
+      if (result.signUrl) {
+        successText += `\nLink de assinatura: ${result.signUrl}`;
+      }
+      alert(successText);
+
+      if (result.signUrl) {
+        window.open(result.signUrl, '_blank');
+      }
+    } else {
+      alert(`❌ Falha ao enviar para o Autentique:\n${result.error || 'Erro desconhecido'}`);
+    }
+  };
+
   const handleSendToSebrae = () => {
     alert(`Pacote completo do SEBRAE SOMA (RAE ${formData.codigo_rae}) compilado com sucesso!\n\nDocumentos inclusos:\n- Relatório de Prestação de Serviço (SOMA SEBRAE)\n- Foto do Cliente / Print de Tela\n- Termo Assinado\n- Nota Fiscal da Consultoria\n\nDisparando e-mail de fechamento...`);
   };
@@ -784,6 +876,64 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 <Printer size={14} />
                 <span>Gerar SOMA PDF</span>
               </button>
+            </div>
+
+            {/* Assinatura Digital do Cliente (GOV.BR Grátis & Autentique API) */}
+            <div className="p-4 bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl shadow-md space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
+                    <FileSignature size={15} />
+                    <span>Assinatura Digital do Cliente</span>
+                  </span>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Envie para o cliente assinar antes de anexar o termo no Sebrae.
+                  </p>
+                </div>
+                {formData.autentique_status && (
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    Autentique: {formData.autentique_status}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {/* Opção GOV.BR (100% Gratuita) */}
+                <button
+                  type="button"
+                  onClick={handleGovBrSignature}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow flex items-center justify-center gap-1.5 text-center"
+                >
+                  <span>🇧🇷 Assinar via GOV.BR</span>
+                  <span className="text-[10px] bg-emerald-800 px-1.5 py-0.5 rounded-md uppercase font-extrabold tracking-wide">100% Grátis</span>
+                </button>
+
+                {/* Opção Autentique API */}
+                <button
+                  type="button"
+                  onClick={handleAutentiqueSignature}
+                  disabled={isSendingAutentique}
+                  className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow flex items-center justify-center gap-1.5 text-center"
+                >
+                  <FileSignature size={14} />
+                  <span>{isSendingAutentique ? 'Disparando...' : 'Enviar Autentique'}</span>
+                  <span className="text-[10px] bg-purple-800 px-1.5 py-0.5 rounded-md uppercase font-extrabold tracking-wide">API</span>
+                </button>
+              </div>
+
+              {formData.autentique_link && (
+                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-purple-200">
+                  <span>Link de Assinatura Autentique ativo:</span>
+                  <a
+                    href={formData.autentique_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-purple-300 font-bold hover:underline flex items-center gap-1"
+                  >
+                    Abrir link <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Upload Termo Assinado */}
