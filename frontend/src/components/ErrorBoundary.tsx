@@ -8,21 +8,28 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: ErrorInfo | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
+    errorInfo: null,
   };
 
-  public static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error in component tree:', error, errorInfo);
+    this.setState({ errorInfo });
   }
+
+  private handleSoftReload = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
 
   private handleReset = () => {
     try {
@@ -37,21 +44,47 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 font-sans">
-          <div className="max-w-md w-full bg-slate-800 border border-slate-700 rounded-3xl p-8 text-center shadow-2xl">
+          <div className="max-w-xl w-full bg-slate-800 border border-slate-700 rounded-3xl p-8 text-center shadow-2xl">
             <div className="w-16 h-16 bg-rose-500/20 border border-rose-500/40 rounded-2xl flex items-center justify-center mx-auto mb-4 text-rose-400">
               <AlertTriangle size={32} />
             </div>
             <h2 className="text-xl font-bold mb-2">Recuperação do Sistema</h2>
-            <p className="text-sm text-slate-400 mb-6">
-              Ocorreu uma instabilidade no carregamento inicial. Clique no botão abaixo para restaurar o ambiente limpo.
+            <p className="text-sm text-slate-400 mb-4">
+              Ocorreu uma instabilidade no carregamento do componente.
             </p>
-            <button
-              onClick={this.handleReset}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30"
-            >
-              <RefreshCw size={18} />
-              <span>Restaurar e Abrir Kanban</span>
-            </button>
+
+            {this.state.error && (
+              <div className="text-left bg-slate-950/80 border border-slate-700/80 rounded-xl p-3.5 mb-5 text-xs font-mono overflow-auto max-h-48 text-rose-300 select-text">
+                <p className="font-bold text-rose-400 mb-1">
+                  {this.state.error.name}: {this.state.error.message}
+                </p>
+                {this.state.error.stack && (
+                  <pre className="text-[11px] text-slate-400 whitespace-pre-wrap leading-relaxed">
+                    {this.state.error.stack.slice(0, 500)}
+                  </pre>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={this.handleSoftReload}
+                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <RefreshCw size={16} />
+                <span>Tentar Novamente</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={this.handleReset}
+                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30"
+              >
+                <RefreshCw size={16} />
+                <span>Restaurar e Abrir Kanban</span>
+              </button>
+            </div>
           </div>
         </div>
       );

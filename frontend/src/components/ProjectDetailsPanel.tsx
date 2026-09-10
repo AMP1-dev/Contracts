@@ -15,7 +15,17 @@ interface ProjectDetailsPanelProps {
 }
 
 export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDelete }: ProjectDetailsPanelProps) {
-  const [formData, setFormData] = useState<Partial<Project>>({});
+  const [formData, setFormData] = useState<Partial<Project>>(() => {
+    if (project) {
+      return {
+        edital: '004/2026',
+        processo_no: '1777/2025',
+        plataforma_utilizada: project.modalidade || 'Presencial',
+        ...project,
+      };
+    }
+    return {};
+  });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -47,7 +57,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               setFormData((prev) => ({
                 ...prev,
                 dados_extra: {
-                  ...prev.dados_extra,
+                  ...(prev.dados_extra || {}),
                   foto_cliente: reader.result as string,
                 }
               }));
@@ -117,28 +127,36 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
 
   // WhatsApp Pre-formatted Link
   const getWhatsAppLink = () => {
-    const rawPhone = formData.celular || formData.telefone || '';
-    const cleanPhone = rawPhone.replace(/\D/g, '');
-    const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
-    const rae = formData.codigo_rae || '';
-    const programa = formData.programa || 'Sebrae';
+    try {
+      const rawPhone = String(formData.celular || formData.telefone || '');
+      const cleanPhone = rawPhone.replace(/\D/g, '');
+      const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
+      const rae = formData.codigo_rae || '';
+      const programa = formData.programa || 'Sebrae';
 
-    const text = `Olá ${clientName}, tudo bem? Sou da consultoria credenciada Sebrae. Recebemos sua demanda (${programa}${rae ? ' - RAE: ' + rae : ''}). Estou entrando em contato para enviarmos o link e agendarmos o nosso primeiro encontro de atendimento. Aguardo seu retorno!`;
+      const text = `Olá ${clientName}, tudo bem? Sou da consultoria credenciada Sebrae. Recebemos sua demanda (${programa}${rae ? ' - RAE: ' + rae : ''}). Estou entrando em contato para enviarmos o link e agendarmos o nosso primeiro encontro de atendimento. Aguardo seu retorno!`;
 
-    const targetPhone = cleanPhone.length <= 11 && !cleanPhone.startsWith('55') ? `55${cleanPhone}` : cleanPhone;
-    return `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(text)}`;
+      const targetPhone = cleanPhone.length <= 11 && !cleanPhone.startsWith('55') ? `55${cleanPhone}` : cleanPhone;
+      return `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(text)}`;
+    } catch (e) {
+      return '#';
+    }
   };
 
   // Email Mailto Link
   const getEmailLink = () => {
-    const email = formData.email_cliente || '';
-    const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
-    const rae = formData.codigo_rae || '';
-    const programa = formData.programa || 'Sebrae';
-    const subject = `Agendamento de Consultoria Sebrae - ${programa} (${rae})`;
-    const body = `Olá ${clientName},\n\nRecebemos a sua demanda de consultoria pelo Sebrae (${programa} - RAE: ${rae}).\n\nEstou entrando em contato para combinarmos o agendamento da nossa primeira reunião de atendimento (virtual ou presencial).\n\nPor favor, responda a esta mensagem para definirmos a melhor data e horário.\n\nAtenciosamente,\nConsultoria Credenciada Sebrae`;
+    try {
+      const email = String(formData.email_cliente || '');
+      const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
+      const rae = formData.codigo_rae || '';
+      const programa = formData.programa || 'Sebrae';
+      const subject = `Agendamento de Consultoria Sebrae - ${programa} (${rae})`;
+      const body = `Olá ${clientName},\n\nRecebemos a sua demanda de consultoria pelo Sebrae (${programa} - RAE: ${rae}).\n\nEstou entrando em contato para combinarmos o agendamento da nossa primeira reunião de atendimento (virtual ou presencial).\n\nPor favor, responda a esta mensagem para definirmos a melhor data e horário.\n\nAtenciosamente,\nConsultoria Credenciada Sebrae`;
 
-    return `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    } catch (e) {
+      return '#';
+    }
   };
 
   // Client Photo Upload
@@ -150,7 +168,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
         setFormData((prev) => ({
           ...prev,
           dados_extra: {
-            ...prev.dados_extra,
+            ...(prev.dados_extra || {}),
             foto_cliente: reader.result as string,
           }
         }));
@@ -166,7 +184,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
       setFormData((prev) => ({
         ...prev,
         dados_extra: {
-          ...prev.dados_extra,
+          ...(prev.dados_extra || {}),
           termo_assinado_nome: file.name,
           termo_assinado_data: new Date().toISOString(),
         }
@@ -181,7 +199,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
       setFormData((prev) => ({
         ...prev,
         dados_extra: {
-          ...prev.dados_extra,
+          ...(prev.dados_extra || {}),
           nota_fiscal_nome: file.name,
           nota_fiscal_data: new Date().toISOString(),
         }
@@ -250,8 +268,9 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     const plataforma = formData.plataforma_utilizada || 'Plataforma Microsoft Teams';
     const nomeCliente = formData.nome_cliente || formData.razao_social || '66.212.730 ERICKA CLEMENTE DOS SANTOS NUNES';
     const cnpjCliente = formData.cnpj || '66.212.730/0001-64';
-    const rae = formData.codigo_rae ? formData.codigo_rae.replace(/\D/g, '') || formData.codigo_rae : '39090075';
-    const cidadeRodape = formData.municipio ? formData.municipio.replace(/\s*\(.*?\)/g, '').trim() : 'Cotia';
+    const rawRae = String(formData.codigo_rae || '39090075');
+    const rae = rawRae.replace(/\D/g, '') || rawRae;
+    const cidadeRodape = formData.municipio ? String(formData.municipio).replace(/\s*\(.*?\)/g, '').trim() : 'Cotia';
 
     const html = `
       <!DOCTYPE html>
@@ -425,7 +444,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     window.open('https://assinador.iti.br', '_blank');
 
     // 3. Monta link de WhatsApp opcional com mensagem pronta para o cliente
-    const phone = (formData.celular || formData.telefone || '').replace(/\D/g, '');
+    const phone = String(formData.celular || formData.telefone || '').replace(/\D/g, '');
     const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
     const msg = `Olá ${clientName}! Segue o Relatório de Prestação de Serviço Sebrae (RAE ${formData.codigo_rae || ''}) para assinatura gratuita pelo GOV.BR.\n\nVocê pode assinar em 1 minuto pelo celular ou computador através do link oficial:\nhttps://assinador.iti.br\n\nBasta entrar com sua conta Gov.br (Prata ou Ouro), carregar o documento e confirmar a assinatura digital. Qualquer dúvida estou à disposição!`;
 

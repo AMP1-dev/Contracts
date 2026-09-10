@@ -48,7 +48,7 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
   }
 
   // Clean phone number for WhatsApp link
-  const rawPhone = project.telefone || project.celular || '';
+  const rawPhone = String(project.telefone || project.celular || '');
   const phoneDigits = rawPhone.replace(/\D/g, '');
   const formattedWhatsapp = phoneDigits
     ? phoneDigits.startsWith('55')
