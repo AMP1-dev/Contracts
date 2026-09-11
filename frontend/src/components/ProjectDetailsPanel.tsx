@@ -28,6 +28,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSendingAutentique, setIsSendingAutentique] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -432,8 +433,6 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     printWindow.focus();
     setTimeout(() => printWindow.print(), 300);
   };
-
-  const [isSendingAutentique, setIsSendingAutentique] = useState(false);
 
   // Assinatura via GOV.BR (100% Gratuita pelo Assinador ITI oficial)
   const handleGovBrSignature = () => {
