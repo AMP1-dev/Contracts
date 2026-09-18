@@ -1031,7 +1031,7 @@ export function KanbanBoard() {
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-purple-900 leading-relaxed">
                 <strong>Passo a passo rápido:</strong>
                 <ol className="list-decimal list-inside mt-1.5 space-y-1 font-medium text-[11px]">
-                  <li>Abra o painel do Supabase do projeto (<code>eornunjxcmtyrdrihiqk</code>)</li>
+                  <li>Abra o painel do Supabase do projeto (<code>nblgkcnsjziezqdiozxo</code>)</li>
                   <li>No menu lateral esquerdo, clique em <strong>SQL Editor</strong></li>
                   <li>Clique em <strong>+ New Query</strong></li>
                   <li>Cole o código SQL abaixo e clique no botão verde <strong>Run</strong></li>
@@ -1064,7 +1064,7 @@ export function KanbanBoard() {
             {/* Modal Footer */}
             <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
               <a
-                href="https://supabase.com/dashboard/project/eornunjxcmtyrdrihiqk/sql"
+                href="https://supabase.com/dashboard/project/nblgkcnsjziezqdiozxo/sql"
                 target="_blank"
                 rel="noreferrer"
                 className="text-purple-700 hover:text-purple-900 font-bold text-xs flex items-center gap-1 hover:underline"
