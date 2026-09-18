@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check } from 'lucide-react';
+import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar } from 'lucide-react';
 import type { Project, CompanyConfig } from '../types/database';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
@@ -132,10 +132,22 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
       const rawPhone = String(formData.celular || formData.telefone || '');
       const cleanPhone = rawPhone.replace(/\D/g, '');
       const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
-      const rae = formData.codigo_rae || '';
-      const programa = formData.programa || 'Sebrae';
+      const programa = formData.programa || 'Consultoria Sebrae';
 
-      const text = `Olá ${clientName}, tudo bem? Sou da consultoria credenciada Sebrae. Recebemos sua demanda (${programa}${rae ? ' - RAE: ' + rae : ''}). Estou entrando em contato para enviarmos o link e agendarmos o nosso primeiro encontro de atendimento. Aguardo seu retorno!`;
+      let template = 'Olá {nome_cliente}, tudo bem? Espero lhe encontrar bem!\n\nSou Marco Antonio, consultor credenciado ao SEBRAE e estou entrando em contato para comunicar que estamos a um passo de marcar nossa consultoria ({programa}).\n\nSegue o link para que possa escolher uma data e horário para este nosso encontro:\n👉 {link_calendario}\n\nÉ muito importante que agende uma data para darmos início ao nosso trabalho, espero e desejo muito que possa contribuir com a sua empresa.';
+      let calendar = 'https://calendar.app.google/skRSHv2QBUjY9ae16';
+
+      const saved = localStorage.getItem('amp_company_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.whatsappTemplate) template = parsed.whatsappTemplate;
+        if (parsed.calendarLink) calendar = parsed.calendarLink;
+      }
+
+      const text = template
+        .replace(/{nome_cliente}/g, clientName)
+        .replace(/{programa}/g, programa)
+        .replace(/{link_calendario}/g, calendar);
 
       const targetPhone = cleanPhone.length <= 11 && !cleanPhone.startsWith('55') ? `55${cleanPhone}` : cleanPhone;
       return `https://api.whatsapp.com/send?phone=${targetPhone}&text=${encodeURIComponent(text)}`;
@@ -585,7 +597,17 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition-all"
               >
-                <span>💬 WhatsApp com Link</span>
+                <span>💬 WhatsApp (Apresentação + Agenda)</span>
+              </a>
+
+              <a
+                href="https://calendar.app.google/skRSHv2QBUjY9ae16"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition-all"
+              >
+                <Calendar size={14} />
+                <span>Abrir Google Agenda</span>
               </a>
 
               <a
@@ -593,7 +615,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-white/20 transition-all"
               >
                 <Mail size={14} />
-                <span>E-mail de Agendamento</span>
+                <span>E-mail</span>
               </a>
             </div>
           </section>

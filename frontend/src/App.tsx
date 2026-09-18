@@ -85,6 +85,8 @@ function App() {
       telegramEnabled: true,
       autentiqueToken: '3646915c7065251ab37b9591a708e08f55d08baadd716bb07623f860fc0b540e',
       autentiqueSandbox: false,
+      calendarLink: 'https://calendar.app.google/skRSHv2QBUjY9ae16',
+      whatsappTemplate: 'Olá {nome_cliente}, tudo bem? Espero lhe encontrar bem!\n\nSou Marco Antonio, consultor credenciado ao SEBRAE e estou entrando em contato para comunicar que estamos a um passo de marcar nossa consultoria ({programa}).\n\nSegue o link para que possa escolher uma data e horário para este nosso encontro:\n👉 {link_calendario}\n\nÉ muito importante que agende uma data para darmos início ao nosso trabalho, espero e desejo muito que possa contribuir com a sua empresa.',
     };
   });
 

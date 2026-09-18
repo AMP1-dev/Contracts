@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { CompanyConfig, UserSession } from '../types/database';
-import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server, Send, Bell, FileSignature, CheckCircle2 } from 'lucide-react';
+import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server, Send, Bell, FileSignature, CheckCircle2, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
 import { sendTelegramNotification } from '../lib/telegram';
 import { testAutentiqueConnection } from '../lib/autentique';
 
@@ -12,12 +12,30 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePassword }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'logo' | 'security' | 'subscription' | 'keywords' | 'smtp' | 'telegram' | 'autentique'>('logo');
+  const [activeTab, setActiveTab] = useState<'logo' | 'agenda' | 'security' | 'subscription' | 'keywords' | 'smtp' | 'telegram' | 'autentique'>('agenda');
   
   // Logo & Branding state
   const [logoUrl, setLogoUrl] = useState(config.logoUrl || '');
   const [companyName, setCompanyName] = useState(config.companyName || 'CRM Consultorias');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+
+  // Agenda & WhatsApp Template state
+  const defaultCalendar = 'https://calendar.app.google/skRSHv2QBUjY9ae16';
+  const defaultTemplate = 'Olá {nome_cliente}, tudo bem? Espero lhe encontrar bem!\n\nSou Marco Antonio, consultor credenciado ao SEBRAE e estou entrando em contato para comunicar que estamos a um passo de marcar nossa consultoria ({programa}).\n\nSegue o link para que possa escolher uma data e horário para este nosso encontro:\n👉 {link_calendario}\n\nÉ muito importante que agende uma data para darmos início ao nosso trabalho, espero e desejo muito que possa contribuir com a sua empresa.';
+  const [calendarLink, setCalendarLink] = useState(config.calendarLink || defaultCalendar);
+  const [whatsappTemplate, setWhatsappTemplate] = useState(config.whatsappTemplate || defaultTemplate);
+  const [agendaSuccessMsg, setAgendaSuccessMsg] = useState('');
+
+  const handleSaveAgenda = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateConfig({
+      ...config,
+      calendarLink: calendarLink.trim(),
+      whatsappTemplate: whatsappTemplate.trim(),
+    });
+    setAgendaSuccessMsg('Configurações de Agendamento e WhatsApp salvas com sucesso!');
+    setTimeout(() => setAgendaSuccessMsg(''), 3500);
+  };
 
   // Password state
   const [newPass, setNewPass] = useState('');
@@ -220,6 +238,18 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
         </button>
 
         <button
+          onClick={() => setActiveTab('agenda')}
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'agenda'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Calendar size={18} />
+          <span>Agendamento & WhatsApp</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('smtp')}
           className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
             activeTab === 'smtp'
@@ -372,6 +402,101 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
                 >
                   <Save size={16} />
                   <span>Salvar Alterações de Marca</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tab: Agendamento & WhatsApp Template */}
+        {activeTab === 'agenda' && (
+          <div className="max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Calendar className="text-primary" size={20} />
+                <span>Link da Agenda & Mensagem de Apresentação (WhatsApp)</span>
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure o link da sua página de agendamento (Google Agenda / Calendly / etc.) e o modelo padrão da mensagem enviada aos clientes credenciados pelo WhatsApp.
+              </p>
+            </div>
+
+            {agendaSuccessMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                <Check size={16} />
+                <span>{agendaSuccessMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveAgenda} className="space-y-5">
+              <div className="bg-slate-50/70 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Link da Sua Página de Agendamento (Google Agenda / Calendly)</span>
+                    {calendarLink && (
+                      <a
+                        href={calendarLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] font-bold text-purple-700 hover:underline flex items-center gap-1 normal-case"
+                      >
+                        Testar link <ExternalLink size={12} />
+                      </a>
+                    )}
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={calendarLink}
+                    onChange={(e) => setCalendarLink(e.target.value)}
+                    placeholder="https://calendar.app.google/..."
+                    className="w-full bg-white border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    💡 O cliente clica neste link direto no WhatsApp para escolher o dia e horário que deseja ser atendido. O evento entra automaticamente na sua agenda e na dele.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <span>Modelo de Mensagem de Apresentação & Convite</span>
+                    <span className="text-[10px] text-slate-400 normal-case">Variáveis: <code className="bg-slate-200 px-1 py-0.5 rounded text-purple-900 font-bold">{'{nome_cliente}'}</code>, <code className="bg-slate-200 px-1 py-0.5 rounded text-purple-900 font-bold">{'{programa}'}</code>, <code className="bg-slate-200 px-1 py-0.5 rounded text-purple-900 font-bold">{'{link_calendario}'}</code></span>
+                  </label>
+                  <textarea
+                    rows={7}
+                    required
+                    value={whatsappTemplate}
+                    onChange={(e) => setWhatsappTemplate(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl p-3.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-sans leading-relaxed"
+                    placeholder="Digite a mensagem padrão que será disparada..."
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Esta mensagem será gerada automaticamente com 1 clique no botão do WhatsApp nos cards do Kanban e no painel de detalhes.
+                  </p>
+                </div>
+              </div>
+
+              {/* Pré-visualização da Mensagem */}
+              <div className="bg-emerald-950/5 border border-emerald-500/20 rounded-2xl p-4">
+                <span className="text-xs font-bold text-emerald-900 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                  <MessageSquare size={14} className="text-emerald-700" />
+                  <span>Prévia de Como o Cliente Recebe no WhatsApp:</span>
+                </span>
+                <div className="bg-white border border-slate-200 rounded-xl p-3.5 text-xs text-slate-700 whitespace-pre-wrap font-sans shadow-xs">
+                  {whatsappTemplate
+                    .replace('{nome_cliente}', 'João da Silva')
+                    .replace('{programa}', 'SP0720261208 SGF 2026')
+                    .replace('{link_calendario}', calendarLink || 'https://calendar.app.google/...')}
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  <span>Salvar Configurações de Agenda & WhatsApp</span>
                 </button>
               </div>
             </form>

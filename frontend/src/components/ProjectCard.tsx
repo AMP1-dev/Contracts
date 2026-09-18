@@ -56,6 +56,31 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
       : `55${phoneDigits}`
     : null;
 
+  // Build WhatsApp invite message from custom template or default
+  const getWhatsAppMessage = () => {
+    try {
+      let template = 'Olá {nome_cliente}, tudo bem? Espero lhe encontrar bem!\n\nSou Marco Antonio, consultor credenciado ao SEBRAE e estou entrando em contato para comunicar que estamos a um passo de marcar nossa consultoria ({programa}).\n\nSegue o link para que possa escolher uma data e horário para este nosso encontro:\n👉 {link_calendario}\n\nÉ muito importante que agende uma data para darmos início ao nosso trabalho, espero e desejo muito que possa contribuir com a sua empresa.';
+      let calendar = 'https://calendar.app.google/skRSHv2QBUjY9ae16';
+
+      const saved = localStorage.getItem('amp_company_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.whatsappTemplate) template = parsed.whatsappTemplate;
+        if (parsed.calendarLink) calendar = parsed.calendarLink;
+      }
+
+      const clientName = project.nome_cliente || project.razao_social || 'Cliente';
+      const programa = project.programa || 'Consultoria Sebrae';
+
+      return template
+        .replace(/{nome_cliente}/g, clientName)
+        .replace(/{programa}/g, programa)
+        .replace(/{link_calendario}/g, calendar);
+    } catch (e) {
+      return `Olá ${project.nome_cliente || 'Cliente'}, sou Marco Antonio, consultor credenciado ao SEBRAE. Segue o link para agendarmos nossa consultoria: https://calendar.app.google/skRSHv2QBUjY9ae16`;
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -153,12 +178,12 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
             </div>
             {formattedWhatsapp && (
               <a
-                href={`https://wa.me/${formattedWhatsapp}?text=Ol%C3%A1%20${encodeURIComponent(project.nome_cliente || '')}%2C%20sou%20seu%20consultor%20do%20Sebrae.`}
+                href={`https://wa.me/${formattedWhatsapp}?text=${encodeURIComponent(getWhatsAppMessage())}`}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2 py-1 rounded-md shadow-2xs transition-colors shrink-0 cursor-pointer"
-                title={`Chamar ${project.nome_cliente || 'cliente'} no WhatsApp`}
+                title={`Enviar convite de agendamento para ${project.nome_cliente || 'cliente'} no WhatsApp`}
               >
                 <MessageSquare size={11} className="fill-current text-white shrink-0" />
                 <span>WhatsApp</span>

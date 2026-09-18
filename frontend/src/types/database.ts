@@ -133,5 +133,9 @@ export interface CompanyConfig {
   // Integração Autentique
   autentiqueToken?: string;
   autentiqueSandbox?: boolean;
+
+  // Link de Agendamento (Google Calendar / Calendly / etc) & WhatsApp Template
+  calendarLink?: string;
+  whatsappTemplate?: string;
 }
 
