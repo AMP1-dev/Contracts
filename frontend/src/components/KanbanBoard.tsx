@@ -344,7 +344,7 @@ function addDeletedId(idOrKey: string) {
   } catch (e) {}
 }
 
-function deduplicateProjects(list: Project[]): Project[] {
+function deduplicateProjects(list: Project[], isFromDatabase: boolean = false): Project[] {
   try {
     if (!Array.isArray(list)) return [];
     const deletedIds = getDeletedIds();
@@ -368,7 +368,7 @@ function deduplicateProjects(list: Project[]): Project[] {
         itemNome.includes('inovação metalúrgica')
       );
 
-      const isDeletedByUser = (
+      const isDeletedByUser = !isFromDatabase && (
         (itemId && deletedIds.has(itemId)) ||
         (itemRae && deletedIds.has(itemRae)) ||
         (itemNome && deletedIds.has(itemNome))
@@ -515,9 +515,11 @@ export function KanbanBoard() {
         setIsDbOnline(true);
         // O banco de dados Supabase é a FONTE ÚNICA DA VERDADE
         if (dbProjects.length > 0) {
-          saveProjects(dbProjects as Project[]);
+          const cleanList = deduplicateProjects(dbProjects as Project[], true);
+          setProjects(cleanList);
+          localStorage.setItem('amp_projects', JSON.stringify(cleanList));
           if (showNotification) {
-            alert(`Sincronizado com sucesso! ${dbProjects.length} contrato(s) carregado(s) diretamente do banco Supabase.`);
+            alert(`Sincronizado com sucesso! ${cleanList.length} contrato(s) carregado(s) diretamente do banco Supabase.`);
           }
         } else {
           // A tabela existe no banco, mas está vazia.
