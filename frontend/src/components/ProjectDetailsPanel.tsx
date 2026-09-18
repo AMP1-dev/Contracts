@@ -104,8 +104,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     try {
       const { error } = await supabase
         .from('projetos')
-        .update(updatedData)
-        .eq('id', project.id);
+        .upsert(updatedData, { onConflict: 'id' });
 
       if (!error) {
         setSaveSuccess(true);
@@ -115,10 +114,12 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
           onClose();
         }, 400);
       } else {
+        console.warn('Aviso ao salvar no Supabase:', error.message);
         onUpdate(updatedData);
         onClose();
       }
     } catch (err) {
+      console.warn('Erro ao salvar no Supabase:', err);
       onUpdate(updatedData);
       onClose();
     } finally {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Layers, Minimize2, Maximize2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Layers, Minimize2, Maximize2, Database, RefreshCw, Copy, Check, ExternalLink, X, AlertCircle } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -21,6 +21,7 @@ import { NewProjectModal } from './NewProjectModal';
 import { supabase } from '../lib/supabase';
 import { KANBAN_COLUMNS, type Project, type ProjectStatus } from '../types/database';
 import { parsePdfFile } from '../lib/pdfParser';
+import { SETUP_DATABASE_SQL } from '../lib/databaseSetupSql';
 
 export const OS_071208_CLIENTS: Project[] = [
   {
@@ -377,31 +378,8 @@ function deduplicateProjects(list: Project[]): Project[] {
         continue;
       }
 
-      // Normaliza a chave de deduplicação pelo RAE/OS ou nome do cliente
-      let rawKey = itemRae || itemNome || itemId;
-      if (rawKey.includes('070873') || rawKey.includes('07873') || itemNome.includes('ericka')) {
-        rawKey = 'os-070873-ericka';
-        const officialEricka = OFFICIAL_PROJECTS.find(p => p.id === 'os-07873');
-        if (officialEricka) {
-          if (!item.apontamentos_cliente || item.status === 'novo_contrato') {
-            item.status = 'relatorio_elaboracao';
-            item.apontamentos_cliente = item.apontamentos_cliente || officialEricka.apontamentos_cliente;
-            item.diagnostico_consultor = item.diagnostico_consultor || officialEricka.diagnostico_consultor;
-            item.resumo_assuntos = item.resumo_assuntos || officialEricka.resumo_assuntos;
-            item.encaminhamentos_recomendacoes = item.encaminhamentos_recomendacoes || officialEricka.encaminhamentos_recomendacoes;
-            item.edital = item.edital || officialEricka.edital;
-            item.processo_no = item.processo_no || officialEricka.processo_no;
-            item.contrato_no = item.contrato_no || officialEricka.contrato_no;
-            item.empresa_credenciada = item.empresa_credenciada || officialEricka.empresa_credenciada;
-            item.profissional_responsavel = item.profissional_responsavel || officialEricka.profissional_responsavel;
-            item.natureza = item.natureza || officialEricka.natureza;
-            item.data_atendimento = item.data_atendimento || officialEricka.data_atendimento;
-            item.plataforma_utilizada = item.plataforma_utilizada || officialEricka.plataforma_utilizada;
-            item.municipio = item.municipio || officialEricka.municipio;
-          }
-        }
-      }
-      const key = rawKey.toLowerCase().trim();
+      // Deduplica preservando as edições e o status real do usuário
+      const key = itemId || itemRae || itemNome;
       if (key && !seen.has(key)) {
         seen.add(key);
         result.push(item);
@@ -418,18 +396,21 @@ function deduplicateProjects(list: Project[]): Project[] {
 export function KanbanBoard() {
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('amp_projects');
-    let list = OFFICIAL_PROJECTS;
-    if (saved) {
+    if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed) && parsed.length > 0) {
-          list = parsed;
+        if (Array.isArray(parsed)) {
+          return deduplicateProjects(parsed);
         }
       } catch (e) {}
     }
-    return deduplicateProjects(list);
+    return deduplicateProjects(OFFICIAL_PROJECTS);
   });
   const [loading, setLoading] = useState(false);
+  const [isDbOnline, setIsDbOnline] = useState<boolean | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSqlModalOpen, setIsSqlModalOpen] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -472,7 +453,7 @@ export function KanbanBoard() {
     (p.codigo_rae && ['39165712', '39165977', '39166313', '39166746', '39166943', '39167037', '39167827', '39167849', '39168125'].some(rae => p.codigo_rae?.includes(rae)))
   );
 
-  const handleDesmembrarOS071208 = () => {
+  const handleDesmembrarOS071208 = async () => {
     if (isOS071208Desmembrada) {
       if (!confirm('A OS 071208 já está desmembrada no seu Kanban. Tem certeza que deseja redefinir os 9 contratos para o estado inicial?')) {
         return;
@@ -485,6 +466,13 @@ export function KanbanBoard() {
     );
     const newList = [...OS_071208_CLIENTS, ...filtered];
     saveProjects(newList);
+
+    try {
+      await supabase.from('projetos').upsert(OS_071208_CLIENTS, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('Erro ao salvar desmembramento no Supabase:', err);
+    }
+
     alert('OS 071208 desmembrada com sucesso! Os 9 contratos de clientes individuais foram criados na coluna "Novo Contrato".');
   };
 
@@ -499,6 +487,13 @@ export function KanbanBoard() {
         const filtered = projects.filter(p => !p.nome_cliente.includes(file.name.replace('.pdf', '')));
         const newList = [...parsedProjects, ...filtered];
         saveProjects(newList);
+
+        try {
+          await supabase.from('projetos').upsert(parsedProjects, { onConflict: 'id' });
+        } catch (dbErr) {
+          console.warn('Erro ao salvar novos contratos no Supabase:', dbErr);
+        }
+
         alert(`PDF (${file.name}) lido com sucesso! ${parsedProjects.length} contrato(s) desmembrado(s) gerado(s).`);
       }
     } catch (err) {
@@ -507,98 +502,55 @@ export function KanbanBoard() {
     }
   };
 
-  useEffect(() => {
-    async function fetchProjects() {
-      try {
-        let fetchedList: Project[] = [...projects];
+  const fetchProjects = async (showNotification = false) => {
+    setIsSyncing(true);
+    try {
+      // 1. Busca os projetos reais diretamente da tabela 'projetos'
+      const { data: dbProjects, error: pError } = await supabase
+        .from('projetos')
+        .select('*')
+        .order('criado_em', { ascending: false });
 
-        // 1. Busca projetos reais da tabela 'projetos'
-        const { data: dbProjects, error: pError } = await supabase
-          .from('projetos')
-          .select('*')
-          .order('criado_em', { ascending: false });
-
-        if (!pError && dbProjects && dbProjects.length > 0) {
-          fetchedList = [...(dbProjects as Project[])];
-        }
-
-        // 2. Busca e-mails processados reais da tabela 'emails_processados'
-        const { data: dbEmails, error: eError } = await supabase
-          .from('emails_processados')
-          .select('*')
-          .eq('status', 'processado')
-          .order('criado_em', { ascending: false });
-
-        if (!eError && dbEmails && dbEmails.length > 0) {
-          dbEmails.forEach((emailItem: any) => {
-            const assunto = emailItem.assunto || '';
-            const raeMatch = assunto.match(/(?:nº|n°|rae|os)[\s:]*([0-9\/\-]+)/i);
-            const rae = raeMatch ? raeMatch[1] : `RAE-${emailItem.id.slice(0, 5)}`;
-
-            let clienteNome = 'Ericka Clemente dos Santos Nunes';
-            if (assunto.includes(' - ') && !assunto.includes('AMP DO BRASIL')) {
-              const parts = assunto.split(' - ');
-              clienteNome = parts[parts.length - 1].trim();
+      if (!pError && dbProjects) {
+        setIsDbOnline(true);
+        // O banco de dados Supabase é a FONTE ÚNICA DA VERDADE
+        if (dbProjects.length > 0) {
+          saveProjects(dbProjects as Project[]);
+          if (showNotification) {
+            alert(`Sincronizado com sucesso! ${dbProjects.length} contrato(s) carregado(s) diretamente do banco Supabase.`);
+          }
+        } else {
+          // A tabela existe no banco, mas está vazia.
+          const wasSeeded = localStorage.getItem('amp_db_seeded');
+          if (!wasSeeded && projects.length > 0) {
+            try {
+              await supabase.from('projetos').insert(projects);
+              localStorage.setItem('amp_db_seeded', 'true');
+            } catch (seedErr) {
+              console.warn('Erro ao semear tabela projetos no Supabase:', seedErr);
             }
-
-            const isOS07873 = assunto.includes('070873') || assunto.includes('07873') || rae.includes('07873') || rae.includes('070873') || clienteNome.includes('Ericka');
-            const raeReal = isOS07873 ? '070873/2026' : rae;
-
-            // Verifica se já não existe no Kanban
-            const existingIndex = fetchedList.findIndex(p => p.codigo_rae === raeReal || p.id.includes('07873') || p.nome_cliente.includes('Ericka'));
-            if (existingIndex >= 0) {
-              // Atualiza o existente com os valores corretos da OS
-              fetchedList[existingIndex] = {
-                ...fetchedList[existingIndex],
-                nome_cliente: 'Ericka Clemente dos Santos Nunes',
-                razao_social: 'Ericka Clemente dos Santos Nunes',
-                codigo_rae: '070873/2026',
-                modalidade: 'À Distância (Online)',
-                valor_consultoria: 170,
-                solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro (Online)',
-                programa: '39090075 SGF 2026',
-              };
-            } else {
-              const realProj: Project = {
-                id: `email-proc-${emailItem.id}`,
-                consultor_id: 'admin-1',
-                codigo_rae: '070873/2026',
-                status: 'novo_contrato',
-                nome_cliente: 'Ericka Clemente dos Santos Nunes',
-                razao_social: 'Ericka Clemente dos Santos Nunes',
-                solucao_contratada: 'Faça a gestão financeira e tenha controle do seu dinheiro (Online)',
-                objetivo_atendimento: `4495 Faça a gestão financeira e tenha controle do seu dinheiro (Remoto) 1 visita RAE 39090075. Assunto: ${assunto}`,
-                horas_contratadas: 1,
-                horas_realizadas: 0,
-                data_prevista_inicio: '2026-08-03',
-                data_prevista_fim: '2026-08-03',
-                modalidade: 'À Distância (Online)',
-                valor_consultoria: 170,
-                observacoes: `Gestor Responsável: WILLIAM PANGARDI (williampa@sebraesp.com.br) | Anexo: ${emailItem.anexo_nome || 'Ordem_de_Servico.pdf'}`,
-                dados_extra: {
-                  gestor_responsavel: 'WILLIAM PANGARDI',
-                  email_gestor: 'williampa@sebraesp.com.br',
-                  colaborador_er: 'CIOMALIA APARECIDA DE MEDEIROS',
-                  email_er: 'ciomaliaam@sebraesp.com.br',
-                  telefone_er: '11946160760',
-                  cep: '06086-040',
-                  codigo_sgf: 'SP0720260873'
-                },
-                criado_em: emailItem.criado_em,
-                atualizado_em: emailItem.criado_em,
-              };
-              fetchedList.unshift(realProj);
-            }
-          });
+          } else if (wasSeeded) {
+            // Se já foi inicializado antes e está vazio, reflete o banco vazio
+            saveProjects([]);
+          }
         }
-
-        saveProjects(fetchedList);
-      } catch (err) {
-        console.warn("Usando projetos de demonstração/locais:", err);
-      } finally {
-        setLoading(false);
+      } else {
+        setIsDbOnline(false);
+        console.warn('Tabela projetos não encontrada ou sem permissão no Supabase:', pError?.message);
+        if (showNotification) {
+          alert(`Atenção: A tabela 'projetos' ainda não foi criada no Supabase (${pError?.message || 'Tabela ausente'}). Clique no botão "Ativar Tabela no Banco" para ver as instruções.`);
+        }
       }
+    } catch (err: any) {
+      setIsDbOnline(false);
+      console.warn('Erro ao conectar ao Supabase:', err);
+    } finally {
+      setIsSyncing(false);
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchProjects();
   }, []);
 
@@ -691,20 +643,28 @@ export function KanbanBoard() {
       ? overId
       : projects.find((p) => p.id === overId)?.status) as ProjectStatus;
 
-    if (currentProject) {
+    if (targetStatus && currentProject.status !== targetStatus) {
+      const updated = projects.map(p => p.id === activeId ? { ...p, status: targetStatus, atualizado_em: new Date().toISOString() } : p);
+      saveProjects(updated);
+
       try {
         await supabase
           .from('projetos')
-          .update({ status: currentProject.status, atualizado_em: new Date().toISOString() })
+          .update({ status: targetStatus, atualizado_em: new Date().toISOString() })
           .eq('id', activeId);
       } catch (err) {
-        console.error('Erro ao salvar novo status do projeto:', err);
+        console.error('Erro ao salvar novo status do projeto no Supabase:', err);
       }
     }
   }
 
   const handleDeleteProject = async (projectId: string) => {
     const projToDelete = projects.find(p => p.id === projectId);
+    const clientName = projToDelete?.nome_cliente || projToDelete?.codigo_rae || 'este contrato';
+    if (!confirm(`Deseja realmente excluir ${clientName}? Esta exclusão será salva no banco de dados.`)) {
+      return;
+    }
+
     if (projToDelete) {
       addDeletedId(projToDelete.id);
       if (projToDelete.codigo_rae) addDeletedId(projToDelete.codigo_rae);
@@ -719,21 +679,35 @@ export function KanbanBoard() {
     if (selectedProject?.id === projectId) {
       setSelectedProject(null);
     }
+
     try {
-      await supabase.from('projetos').delete().eq('id', projectId);
+      const { error } = await supabase.from('projetos').delete().eq('id', projectId);
+      if (error) {
+        console.warn("Erro ao deletar projeto no Supabase:", error.message);
+      }
     } catch (err) {
       console.warn("Erro ao deletar projeto no Supabase:", err);
     }
   };
 
-  const handleCreateProject = (newProject: Project) => {
+  const handleCreateProject = async (newProject: Project) => {
     const updated = [newProject, ...projects];
     saveProjects(updated);
+    try {
+      await supabase.from('projetos').insert([newProject]);
+    } catch (err) {
+      console.warn('Erro ao inserir novo projeto no Supabase:', err);
+    }
   };
 
-  const handleProjectUpdate = (updatedProject: Project) => {
+  const handleProjectUpdate = async (updatedProject: Project) => {
     const updated = projects.map(p => p.id === updatedProject.id ? updatedProject : p);
     saveProjects(updated);
+    try {
+      await supabase.from('projetos').upsert(updatedProject, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('Erro ao atualizar projeto no Supabase:', err);
+    }
   };
 
   if (loading) {
@@ -773,6 +747,37 @@ export function KanbanBoard() {
           <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shrink-0">
             Total: <strong>{projects.length}</strong>
           </span>
+
+          {/* Status de Conexão com o Banco Supabase */}
+          {isDbOnline === true ? (
+            <button
+              type="button"
+              onClick={() => fetchProjects(true)}
+              title="Conectado ao Supabase em tempo real! Clique para recarregar diretamente do banco."
+              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 shadow-xs cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <Database size={13} />
+              <span>Banco Online</span>
+              <RefreshCw size={11} className={isSyncing ? "animate-spin ml-0.5" : "ml-0.5 opacity-60"} />
+            </button>
+          ) : isDbOnline === false ? (
+            <button
+              type="button"
+              onClick={() => setIsSqlModalOpen(true)}
+              title="A tabela 'projetos' ainda não foi criada no Supabase. Clique para copiar o script SQL e ativar a persistência em nuvem."
+              className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1.5 shrink-0 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-400 shadow-xs animate-pulse cursor-pointer"
+            >
+              <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+              <Database size={13} />
+              <span>Banco Pendente (Ativar SQL)</span>
+            </button>
+          ) : (
+            <span className="px-2 py-1 text-[11px] text-slate-400 flex items-center gap-1 shrink-0">
+              <RefreshCw size={11} className="animate-spin" />
+              <span>Checando banco...</span>
+            </span>
+          )}
 
           <div className="h-4 w-[1px] bg-slate-200 shrink-0 hidden sm:block"></div>
 
@@ -912,6 +917,39 @@ export function KanbanBoard() {
         </div>
       </div>
 
+      {/* Banner Informativo quando o Banco não tem a tabela 'projetos' */}
+      {isDbOnline === false && (
+        <div className="mb-3 bg-amber-50 border border-amber-300 p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-200 flex items-center justify-center shrink-0 font-black text-amber-800">
+              <AlertCircle size={18} />
+            </div>
+            <div>
+              <p className="font-bold">Aviso: A tabela <code>public.projetos</code> ainda não foi criada no seu banco de dados Supabase.</p>
+              <p className="text-amber-700 text-[11px]">No momento os dados estão sendo guardados no navegador. Para garantir que contratos alterados e excluídos fiquem salvos 100% no banco da nuvem, execute o script SQL.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsSqlModalOpen(true)}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Database size={14} />
+              <span>Ativar no Supabase (Ver SQL)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => fetchProjects(true)}
+              className="bg-white hover:bg-slate-100 text-slate-700 border border-amber-300 font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <RefreshCw size={13} className={isSyncing ? "animate-spin" : ""} />
+              <span>Verificar Conexão</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Kanban Board Columns View */}
       <div className="flex-1 min-h-0 overflow-hidden relative">
         <DndContext
@@ -963,6 +1001,101 @@ export function KanbanBoard() {
         onClose={() => setIsNewModalOpen(false)}
         onCreate={handleCreateProject}
       />
+
+      {/* Modal de Configuração do SQL no Supabase */}
+      {isSqlModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                  <Database size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm">Criar Tabela 'projetos' no Supabase</h3>
+                  <p className="text-[11px] text-slate-500">Siga o passo a passo de 1 minuto para ativar a leitura e escrita direta no banco</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSqlModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 overflow-y-auto space-y-4 text-xs text-slate-600">
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-purple-900 leading-relaxed">
+                <strong>Passo a passo rápido:</strong>
+                <ol className="list-decimal list-inside mt-1.5 space-y-1 font-medium text-[11px]">
+                  <li>Abra o painel do Supabase do projeto (<code>eornunjxcmtyrdrihiqk</code>)</li>
+                  <li>No menu lateral esquerdo, clique em <strong>SQL Editor</strong></li>
+                  <li>Clique em <strong>+ New Query</strong></li>
+                  <li>Cole o código SQL abaixo e clique no botão verde <strong>Run</strong></li>
+                  <li>Volte aqui e clique no botão verde <strong>"Verificar Conexão Agora"</strong>!</li>
+                </ol>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-bold text-slate-700 text-xs">Código SQL para Execução:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(SETUP_DATABASE_SQL);
+                      setCopiedSql(true);
+                      setTimeout(() => setCopiedSql(false), 2500);
+                    }}
+                    className="flex items-center gap-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded-lg font-bold text-[11px] transition-all shadow-xs"
+                  >
+                    {copiedSql ? <Check size={13} /> : <Copy size={13} />}
+                    <span>{copiedSql ? 'Copiado para a Área de Transferência!' : 'Copiar Código SQL'}</span>
+                  </button>
+                </div>
+                <pre className="bg-slate-900 text-emerald-400 p-3.5 rounded-xl font-mono text-[11px] overflow-x-auto max-h-60 border border-slate-800 leading-relaxed select-all">
+                  {SETUP_DATABASE_SQL}
+                </pre>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+              <a
+                href="https://supabase.com/dashboard/project/eornunjxcmtyrdrihiqk/sql"
+                target="_blank"
+                rel="noreferrer"
+                className="text-purple-700 hover:text-purple-900 font-bold text-xs flex items-center gap-1 hover:underline"
+              >
+                <span>Abrir Supabase SQL Editor</span>
+                <ExternalLink size={13} />
+              </a>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSqlModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await fetchProjects(true);
+                    setIsSqlModalOpen(false);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center gap-1.5 shadow-xs shadow-emerald-600/20 cursor-pointer"
+                >
+                  <RefreshCw size={13} className={isSyncing ? "animate-spin" : ""} />
+                  <span>Verificar Conexão Agora</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
