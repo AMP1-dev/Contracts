@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, FileText, Building2, User, Clock } from 'lucide-react';
 import type { Project, ProjectStatus } from '../types/database';
+import { maskPhone } from '../lib/utils';
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
   const [emailCliente, setEmailCliente] = useState('');
   const [celular, setCelular] = useState('');
   const [municipio, setMunicipio] = useState('');
+  const [dataAtendimento, setDataAtendimento] = useState('');
   const [programa, setPrograma] = useState('');
   const [solucao, setSolucao] = useState('');
   const [horasContratadas, setHorasContratadas] = useState('');
@@ -28,6 +30,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
     setEmailCliente('');
     setCelular('');
     setMunicipio('');
+    setDataAtendimento('');
     setPrograma('');
     setSolucao('');
     setHorasContratadas('');
@@ -72,7 +75,8 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
       objetivo_atendimento: 'Atendimento e consultoria Sebrae agendados.',
       horas_contratadas: parseFloat(horasContratadas) || 0,
       horas_realizadas: 0,
-      data_prevista_inicio: new Date().toISOString().split('T')[0],
+      data_atendimento: dataAtendimento.trim() || null,
+      data_prevista_inicio: dataAtendimento.trim() || new Date().toISOString().split('T')[0],
       data_prevista_fim: null,
       modalidade: modalidade,
       valor_consultoria: parseFloat(valorConsultoria) || 0,
@@ -152,14 +156,24 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
               <input
                 type="text"
                 value={celular}
-                onChange={(e) => setCelular(e.target.value)}
+                onChange={(e) => setCelular(maskPhone(e.target.value))}
                 placeholder="(11) 99999-9999"
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Data do Atendimento</label>
+              <input
+                type="text"
+                value={dataAtendimento}
+                onChange={(e) => setDataAtendimento(e.target.value)}
+                placeholder="Ex: 10/08/2026"
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+              />
+            </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">E-mail do Cliente</label>
               <input

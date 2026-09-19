@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar } from 'lucide-react';
 import type { Project, CompanyConfig } from '../types/database';
 import { supabase } from '../lib/supabase';
-import { cn } from '../lib/utils';
+import { cn, maskPhone } from '../lib/utils';
 import { REPORT_ARROW_B64, REPORT_BANNER_B64, REPORT_LOGO_B64 } from '../assets/reportAssets';
 import { createAutentiqueDocument } from '../lib/autentique';
 
@@ -641,6 +641,16 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 onChange={(v) => handleChange('valor_consultoria', parseFloat(v) || 0)} 
               />
               <InputField 
+                label="Data do Atendimento / Início" 
+                type="text"
+                value={formData.data_atendimento || formData.data_prevista_inicio || ''} 
+                onChange={(v) => {
+                  handleChange('data_atendimento', v);
+                  handleChange('data_prevista_inicio', v);
+                }} 
+                placeholder="Ex: 10/08/2026"
+              />
+              <InputField 
                 label="Programa / Produto Aplicado" 
                 value={formData.programa} 
                 onChange={(v) => handleChange('programa', v)} 
@@ -711,8 +721,13 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               />
               <InputField 
                 label="Celular / WhatsApp" 
-                value={formData.celular} 
-                onChange={(v) => handleChange('celular', v)} 
+                value={maskPhone(formData.celular || formData.telefone || '')} 
+                onChange={(v) => {
+                  const masked = maskPhone(v);
+                  handleChange('celular', masked);
+                  handleChange('telefone', masked);
+                }} 
+                placeholder="(00) 00000-0000"
               />
               <InputField 
                 label="Município" 
@@ -735,16 +750,6 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-              <InputField 
-                label="Data do Atendimento (Execução)" 
-                type="text"
-                value={formData.data_atendimento || formData.data_prevista_inicio || ''} 
-                onChange={(v) => {
-                  handleChange('data_atendimento', v);
-                  handleChange('data_prevista_inicio', v);
-                }} 
-                placeholder="Ex: 17/08/2026 ou 2026-08-17"
-              />
               <InputField 
                 label="Contrato Nº" 
                 value={formData.contrato_no || '070873/2026'} 
@@ -779,6 +784,16 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 label="Profissional Responsável" 
                 value={formData.profissional_responsavel || 'MARCO ANTONIO PAVANI'} 
                 onChange={(v) => handleChange('profissional_responsavel', v)} 
+              />
+              <InputField 
+                label="Data do Atendimento (Execução)" 
+                type="text"
+                value={formData.data_atendimento || formData.data_prevista_inicio || ''} 
+                onChange={(v) => {
+                  handleChange('data_atendimento', v);
+                  handleChange('data_prevista_inicio', v);
+                }} 
+                placeholder="Ex: 10/08/2026 ou 2026-08-10"
               />
             </div>
 

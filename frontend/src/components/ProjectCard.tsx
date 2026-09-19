@@ -2,7 +2,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Building2, FileText, GripVertical, Phone, Clock, MessageSquare, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type Project, type ProjectStatus, KANBAN_COLUMNS } from '../types/database';
-import { cn } from '../lib/utils';
+import { cn, maskPhone } from '../lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -37,14 +37,16 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
 
   let formattedDate = 'Hoje';
   try {
-    if (project.criado_em) {
+    if (project.data_atendimento) {
+      formattedDate = `Atend: ${project.data_atendimento}`;
+    } else if (project.criado_em) {
       const d = new Date(project.criado_em);
       if (!isNaN(d.getTime())) {
         formattedDate = format(d, "dd MMM, yyyy", { locale: ptBR });
       }
     }
   } catch (e) {
-    formattedDate = 'Hoje';
+    formattedDate = project.data_atendimento ? `Atend: ${project.data_atendimento}` : 'Hoje';
   }
 
   // Clean phone number for WhatsApp link
@@ -174,7 +176,7 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
           <div className="flex items-center justify-between gap-1.5 text-xs text-slate-600 font-medium bg-slate-50/80 p-1.5 rounded-lg border border-slate-200/60 mt-0.5">
             <div className="flex items-center gap-1.5 min-w-0">
               <Phone size={13} className="text-emerald-600 shrink-0" />
-              <span className="truncate font-semibold text-slate-700">{rawPhone}</span>
+              <span className="truncate font-semibold text-slate-700">{maskPhone(rawPhone)}</span>
             </div>
             {formattedWhatsapp && (
               <a

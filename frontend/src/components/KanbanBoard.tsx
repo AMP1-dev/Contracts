@@ -22,6 +22,7 @@ import { supabase } from '../lib/supabase';
 import { KANBAN_COLUMNS, type Project, type ProjectStatus } from '../types/database';
 import { parsePdfFile } from '../lib/pdfParser';
 import { SETUP_DATABASE_SQL } from '../lib/databaseSetupSql';
+import { formatCurrency } from '../lib/utils';
 
 export const OS_071208_CLIENTS: Project[] = [
   {
@@ -798,7 +799,9 @@ export function KanbanBoard() {
             </button>
 
             {KANBAN_COLUMNS.map((col) => {
-              const count = projects.filter((p) => p.status === col.id).length;
+              const colProjects = projects.filter((p) => p.status === col.id);
+              const count = colProjects.length;
+              const totalVal = colProjects.reduce((acc, p) => acc + (Number(p.valor_consultoria) || 0), 0);
               const isSelected = selectedFilter === col.id;
               return (
                 <button
@@ -812,6 +815,7 @@ export function KanbanBoard() {
                       handleScrollToColumn(col.id);
                     }
                   }}
+                  title={totalVal > 0 ? `${col.title}: ${count} contratos • Total: ${formatCurrency(totalVal)}` : `${col.title}: ${count}`}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all whitespace-nowrap border flex items-center gap-1.5 shrink-0 ${
                     isSelected
                       ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
@@ -825,6 +829,13 @@ export function KanbanBoard() {
                   }`}>
                     {count}
                   </span>
+                  {totalVal > 0 && (
+                    <span className={`text-[10px] font-bold px-1 rounded ${
+                      isSelected ? 'bg-purple-800 text-emerald-300' : 'text-emerald-700 bg-emerald-50 border border-emerald-200'
+                    }`}>
+                      {formatCurrency(totalVal)}
+                    </span>
+                  )}
                 </button>
               );
             })}
