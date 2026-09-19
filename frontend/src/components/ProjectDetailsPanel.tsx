@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { cn, maskPhone } from '../lib/utils';
 import { REPORT_ARROW_B64, REPORT_BANNER_B64, REPORT_LOGO_B64 } from '../assets/reportAssets';
 import { createAutentiqueDocument } from '../lib/autentique';
+import { SomaAiAssistant } from './SomaAiAssistant';
 
 interface ProjectDetailsPanelProps {
   project: Project | null;
@@ -797,6 +798,23 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               />
             </div>
 
+            {/* Assistente de IA & Voz: Gerador Automático de Relatório SOMA SEBRAE */}
+            <SomaAiAssistant 
+              clientContext={{
+                nome_cliente: formData.nome_cliente || formData.nome_fantasia || formData.razao_social || '',
+                razao_social: formData.razao_social || formData.nome_cliente || '',
+                solucao_contratada: formData.solucao_contratada || '',
+                programa: formData.programa || '',
+                consultor: formData.profissional_responsavel || 'MARCO ANTONIO PAVANI',
+              }}
+              onApplyReport={(report) => {
+                handleChange('apontamentos_cliente', report.apontamentos_cliente);
+                handleChange('diagnostico_consultor', report.diagnostico_consultor);
+                handleChange('resumo_assuntos', report.resumo_assuntos);
+                handleChange('encaminhamentos_recomendacoes', report.encaminhamentos_recomendacoes);
+              }}
+            />
+
             {/* 4 Narrative Boxes */}
             <div className="space-y-3.5 pt-2">
               <div>
@@ -804,7 +822,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                   1. Apontamentos do cliente (observações do cliente):
                 </label>
                 <textarea 
-                  rows={2}
+                  rows={3}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                   value={formData.apontamentos_cliente || ''}
                   onChange={(e) => handleChange('apontamentos_cliente', e.target.value)}
@@ -817,7 +835,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                   2. Diagnóstico do consultor:
                 </label>
                 <textarea 
-                  rows={2}
+                  rows={3}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                   value={formData.diagnostico_consultor || ''}
                   onChange={(e) => handleChange('diagnostico_consultor', e.target.value)}
@@ -830,7 +848,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                   3. Resumo dos assuntos discutidos:
                 </label>
                 <textarea 
-                  rows={2}
+                  rows={3}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                   value={formData.resumo_assuntos || ''}
                   onChange={(e) => handleChange('resumo_assuntos', e.target.value)}
@@ -843,7 +861,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                   4. Encaminhamento / recomendações:
                 </label>
                 <textarea 
-                  rows={2}
+                  rows={3}
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                   value={formData.encaminhamentos_recomendacoes || ''}
                   onChange={(e) => handleChange('encaminhamentos_recomendacoes', e.target.value)}
