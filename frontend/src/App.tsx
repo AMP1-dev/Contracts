@@ -36,9 +36,7 @@ function App() {
   const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
 
   // Auth & Storage state
-  const [authState, setAuthState] = useState<AuthState>('authenticated');
-
-  const [session, setSession] = useState<UserSession>(() => {
+  const [session, setSession] = useState<UserSession | null>(() => {
     try {
       const saved = localStorage.getItem('amp_auth_session');
       if (saved) {
@@ -53,7 +51,20 @@ function App() {
         }
       }
     } catch (e) {}
-    return DEFAULT_SESSION;
+    return null;
+  });
+
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    try {
+      const saved = localStorage.getItem('amp_auth_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return 'authenticated';
+        }
+      }
+    } catch (e) {}
+    return 'login';
   });
 
   const [adminPassword, setAdminPassword] = useState<string>(() => {
@@ -139,6 +150,7 @@ function App() {
 
   // Logout
   const handleLogout = () => {
+    localStorage.removeItem('amp_auth_session');
     setSession(null);
     setAuthState('login');
   };

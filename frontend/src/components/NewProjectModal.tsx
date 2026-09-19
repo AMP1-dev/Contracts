@@ -15,13 +15,38 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
   const [emailCliente, setEmailCliente] = useState('');
   const [celular, setCelular] = useState('');
   const [municipio, setMunicipio] = useState('');
-  const [programa, setPrograma] = useState('Sebrae Mais');
+  const [programa, setPrograma] = useState('');
   const [solucao, setSolucao] = useState('');
-  const [horasContratadas, setHorasContratadas] = useState('20');
-  const [valorConsultoria, setValorConsultoria] = useState('3000');
+  const [horasContratadas, setHorasContratadas] = useState('');
+  const [valorConsultoria, setValorConsultoria] = useState('');
   const [modalidade, setModalidade] = useState('Presencial');
 
+  const resetForm = () => {
+    setCodigoRae('');
+    setNomeCliente('');
+    setCnpj('');
+    setEmailCliente('');
+    setCelular('');
+    setMunicipio('');
+    setPrograma('');
+    setSolucao('');
+    setHorasContratadas('');
+    setValorConsultoria('');
+    setModalidade('Presencial');
+  };
+
+  React.useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +70,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
       programa: programa || 'Sebrae',
       solucao_contratada: solucao.trim() || 'Consultoria de Gestão e Processos',
       objetivo_atendimento: 'Atendimento e consultoria Sebrae agendados.',
-      horas_contratadas: parseFloat(horasContratadas) || 20,
+      horas_contratadas: parseFloat(horasContratadas) || 0,
       horas_realizadas: 0,
       data_prevista_inicio: new Date().toISOString().split('T')[0],
       data_prevista_fim: null,
@@ -58,6 +83,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
     };
 
     onCreate(newP);
+    resetForm();
     onClose();
   };
 
@@ -65,7 +91,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
     <>
       <div 
         className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl bg-white rounded-3xl shadow-2xl z-50 p-6 md:p-8 space-y-6 font-sans border border-slate-200 max-h-[90vh] overflow-y-auto">
@@ -78,7 +104,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
             <p className="text-xs text-slate-500 mt-0.5">Preencha os dados básicos para incluir o contrato no Kanban</p>
           </div>
           <button 
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors"
           >
             <X size={20} />
