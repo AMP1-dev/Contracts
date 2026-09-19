@@ -656,7 +656,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 onChange={(v) => handleChange('programa', v)} 
               />
               <InputField 
-                label="Modalidade / Formato (Remoto/Presencial)" 
+                label="(Remoto/Presencial)" 
                 value={formData.modalidade} 
                 onChange={(v) => handleChange('modalidade', v)} 
               />

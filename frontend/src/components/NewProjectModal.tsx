@@ -212,13 +212,14 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Modalidade</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">(Remoto/Presencial)</label>
               <select
                 value={modalidade}
                 onChange={(e) => setModalidade(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
               >
                 <option value="Presencial">Presencial</option>
+                <option value="Remoto">Remoto</option>
                 <option value="Online">Online</option>
                 <option value="Híbrido">Híbrido</option>
               </select>
