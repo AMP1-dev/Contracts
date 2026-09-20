@@ -19,9 +19,6 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
   const [formData, setFormData] = useState<Partial<Project>>(() => {
     if (project) {
       return {
-        edital: '004/2026',
-        processo_no: '1777/2025',
-        plataforma_utilizada: project.modalidade || 'Presencial',
         ...project,
       };
     }
@@ -34,9 +31,6 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
   useEffect(() => {
     if (project) {
       setFormData({
-        edital: '004/2026',
-        processo_no: '1777/2025',
-        plataforma_utilizada: project.modalidade || 'Presencial',
         ...project
       });
     }
@@ -631,7 +625,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
               <InputField 
-                label="Código RAE / OS nº" 
+                label="Código RAE / CO / OS nº" 
                 value={formData.codigo_rae} 
                 onChange={(v) => handleChange('codigo_rae', v)} 
               />
@@ -753,38 +747,45 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
               <InputField 
                 label="Contrato Nº" 
-                value={formData.contrato_no || '070873/2026'} 
+                value={formData.contrato_no || ''} 
                 onChange={(v) => handleChange('contrato_no', v)} 
+                placeholder="Ex: RJ0520260103"
               />
               <InputField 
                 label="Edital" 
-                value={formData.edital || '004/2026'} 
+                value={formData.edital || ''} 
                 onChange={(v) => handleChange('edital', v)} 
+                placeholder="Ex: 001/2026"
               />
               <InputField 
                 label="Processo Nº" 
-                value={formData.processo_no || '1777/2025'} 
+                value={formData.processo_no || ''} 
                 onChange={(v) => handleChange('processo_no', v)} 
+                placeholder="Ex: 1777/2025"
               />
               <InputField 
                 label="Plataforma Utilizada" 
-                value={formData.plataforma_utilizada || 'Plataforma Microsoft Teams'} 
+                value={formData.plataforma_utilizada || ''} 
                 onChange={(v) => handleChange('plataforma_utilizada', v)} 
+                placeholder="Ex: Remoto ou Plataforma Teams"
               />
               <InputField 
                 label="Natureza" 
-                value={formData.natureza || 'CONSULTORIA'} 
+                value={formData.natureza || ''} 
                 onChange={(v) => handleChange('natureza', v)} 
+                placeholder="Ex: CONSULTORIA"
               />
               <InputField 
                 label="Empresa Credenciada" 
-                value={formData.empresa_credenciada || 'AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA'} 
+                value={formData.empresa_credenciada || ''} 
                 onChange={(v) => handleChange('empresa_credenciada', v)} 
+                placeholder="Ex: AMP DO BRASIL..."
               />
               <InputField 
                 label="Profissional Responsável" 
-                value={formData.profissional_responsavel || 'MARCO ANTONIO PAVANI'} 
+                value={formData.profissional_responsavel || ''} 
                 onChange={(v) => handleChange('profissional_responsavel', v)} 
+                placeholder="Ex: MARCO ANTONIO PAVANI"
               />
               <InputField 
                 label="Data do Atendimento (Execução)" 

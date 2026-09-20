@@ -165,9 +165,16 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
         {project.codigo_rae && (
           <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
             <FileText size={14} className="text-slate-400 shrink-0" />
-            <span className="truncate bg-slate-100 px-1.5 py-0.5 rounded-md text-slate-700 font-semibold">
-              {project.codigo_rae}
+            <span className="truncate bg-slate-100 px-1.5 py-0.5 rounded-md text-slate-700 font-semibold" title="Código RAE / CO / OS">
+              {project.codigo_rae.toUpperCase().includes('RAE') || project.codigo_rae.toUpperCase().includes('CO') || project.codigo_rae.toUpperCase().includes('OS')
+                ? project.codigo_rae
+                : `RAE/CO: ${project.codigo_rae}`}
             </span>
+            {project.contrato_no && (
+              <span className="truncate text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-bold">
+                {project.contrato_no}
+              </span>
+            )}
           </div>
         )}
 

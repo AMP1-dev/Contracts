@@ -693,13 +693,14 @@ export function KanbanBoard() {
     }
   };
 
-  const handleCreateProject = async (newProject: Project) => {
-    const updated = [newProject, ...projects];
+  const handleCreateProject = async (newProjects: Project | Project[]) => {
+    const list = Array.isArray(newProjects) ? newProjects : [newProjects];
+    const updated = [...list, ...projects];
     saveProjects(updated);
     try {
-      await supabase.from('projetos').insert([newProject]);
+      await supabase.from('projetos').insert(list);
     } catch (err) {
-      console.warn('Erro ao inserir novo projeto no Supabase:', err);
+      console.warn('Erro ao inserir novo(s) projeto(s) no Supabase:', err);
     }
   };
 
