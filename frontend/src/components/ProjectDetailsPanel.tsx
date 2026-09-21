@@ -689,9 +689,12 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <InputField 
-                label="Razão Social" 
-                value={formData.razao_social} 
-                onChange={(v) => handleChange('razao_social', v)} 
+                label="Nome do Cliente / Razão Social" 
+                value={formData.nome_cliente || formData.razao_social || ''} 
+                onChange={(v) => {
+                  handleChange('nome_cliente', v);
+                  handleChange('razao_social', v);
+                }} 
               />
               <InputField 
                 label="Nome Fantasia" 
