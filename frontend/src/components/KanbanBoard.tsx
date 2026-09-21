@@ -693,25 +693,48 @@ export function KanbanBoard() {
     }
   };
 
-  const handleCreateProject = async (newProjects: Project | Project[]) => {
+  const handleCreateProject = (newProjects: Project | Project[]) => {
     const list = Array.isArray(newProjects) ? newProjects : [newProjects];
-    const updated = [...list, ...projects];
-    saveProjects(updated);
-    try {
-      await supabase.from('projetos').insert(list);
-    } catch (err) {
-      console.warn('Erro ao inserir novo(s) projeto(s) no Supabase:', err);
-    }
+    setProjects((prevProjects) => {
+      const updated = [...list, ...prevProjects];
+      localStorage.setItem('amp_projects', JSON.stringify(updated));
+      return updated;
+    });
+
+    supabase
+      .from('projetos')
+      .insert(list)
+      .then(({ error }) => {
+        if (error) {
+          console.warn('Tentando upsert para novos projetos no Supabase:', error.message);
+          supabase.from('projetos').upsert(list, { onConflict: 'id' });
+        }
+      })
+      .catch((err) => console.warn('Erro Supabase insert:', err));
   };
 
-  const handleProjectUpdate = async (updatedProject: Project) => {
-    const updated = projects.map(p => p.id === updatedProject.id ? updatedProject : p);
-    saveProjects(updated);
-    try {
-      await supabase.from('projetos').upsert(updatedProject, { onConflict: 'id' });
-    } catch (err) {
-      console.warn('Erro ao atualizar projeto no Supabase:', err);
-    }
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setProjects((prevProjects) => {
+      let found = false;
+      const nextList = prevProjects.map((p) => {
+        if (p.id === updatedProject.id) {
+          found = true;
+          return updatedProject;
+        }
+        return p;
+      });
+      const finalList = found ? nextList : [updatedProject, ...prevProjects];
+      localStorage.setItem('amp_projects', JSON.stringify(finalList));
+      return finalList;
+    });
+
+    supabase
+      .from('projetos')
+      .upsert(updatedProject, { onConflict: 'id' })
+      .then(({ error }) => {
+        if (error) console.warn('Aviso Supabase upsert:', error.message);
+      })
+      .catch((err) => console.warn('Erro Supabase upsert:', err));
   };
 
   if (loading) {

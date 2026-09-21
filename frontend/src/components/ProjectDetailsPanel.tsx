@@ -36,16 +36,23 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     }
   }, [project]);
 
-  // Support Ctrl+V paste of WhatsApp screenshot directly anywhere in panel
+  // Support Ctrl+V paste of WhatsApp screenshot directly anywhere in panel (except when focused in inputs/textareas)
   useEffect(() => {
     if (!isOpen) return;
 
     const handlePaste = (e: ClipboardEvent) => {
+      // Se o usuário estiver focado em um input ou textarea (digitando ou colando texto), NUNCA intercepta!
+      const activeElement = document.activeElement;
+      const activeTag = (activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'textarea' || activeTag === 'input' || activeElement?.getAttribute('contenteditable') === 'true') {
+        return;
+      }
+
       const items = e.clipboardData?.items;
       if (!items) return;
 
       for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf('image') !== -1) {
+        if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
           const blob = items[i].getAsFile();
           if (blob) {
             const reader = new FileReader();
@@ -84,42 +91,39 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     });
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!project.id) return;
     setIsSaving(true);
-    setSaveSuccess(false);
+    setSaveSuccess(true);
 
     const updatedData: Project = {
       ...project,
       ...formData,
       nome_cliente: formData.nome_cliente || formData.razao_social || project.nome_cliente,
       razao_social: formData.razao_social || formData.nome_cliente || project.razao_social,
+      atualizado_em: new Date().toISOString(),
     } as Project;
 
-    try {
-      const { error } = await supabase
-        .from('projetos')
-        .upsert(updatedData, { onConflict: 'id' });
+    // 1. Atualização Otimista Imediata (0ms de espera no Kanban!)
+    onUpdate(updatedData);
 
-      if (!error) {
-        setSaveSuccess(true);
-        onUpdate(updatedData);
-        setTimeout(() => {
-          setSaveSuccess(false);
-          onClose();
-        }, 400);
-      } else {
-        console.warn('Aviso ao salvar no Supabase:', error.message);
-        onUpdate(updatedData);
-        onClose();
-      }
-    } catch (err) {
-      console.warn('Erro ao salvar no Supabase:', err);
-      onUpdate(updatedData);
-      onClose();
-    } finally {
+    // Fecha o painel suavemente
+    setTimeout(() => {
+      setSaveSuccess(false);
       setIsSaving(false);
-    }
+      onClose();
+    }, 250);
+
+    // 2. Gravação assíncrona no Supabase em background
+    supabase
+      .from('projetos')
+      .upsert(updatedData, { onConflict: 'id' })
+      .then(({ error }) => {
+        if (error) console.warn('Aviso ao sincronizar projeto no Supabase:', error.message);
+      })
+      .catch((err) => {
+        console.warn('Erro ao salvar projeto no Supabase:', err);
+      });
   };
 
   // WhatsApp Pre-formatted Link
