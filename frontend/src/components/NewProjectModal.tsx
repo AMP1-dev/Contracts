@@ -4,6 +4,7 @@ import type { Project, ProjectStatus } from '../types/database';
 import { maskPhone } from '../lib/utils';
 
 interface EmpresaAdicional {
+  codigoRae: string;
   nome: string;
   cnpj: string;
   celular: string;
@@ -16,47 +17,57 @@ interface NewProjectModalProps {
 }
 
 export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalProps) {
-  const [codigoRae, setCodigoRae] = useState('');
+  // Dados do Contrato (Guarda-Chuva)
   const [contratoNo, setContratoNo] = useState('');
   const [edital, setEdital] = useState('');
   const [processoNo, setProcessoNo] = useState('');
-  const [nomeCliente, setNomeCliente] = useState('');
-  const [cnpj, setCnpj] = useState('');
-  const [emailCliente, setEmailCliente] = useState('');
-  const [celular, setCelular] = useState('');
-  const [municipio, setMunicipio] = useState('');
-  const [estado, setEstado] = useState('RJ');
+  const [programa, setPrograma] = useState('FOCO - Sebrae RJ');
+  const [modalidade, setModalidade] = useState('Remoto');
   const [dataAtendimento, setDataAtendimento] = useState('');
-  const [programa, setPrograma] = useState('Sebrae Mais');
-  const [solucao, setSolucao] = useState('');
   const [horasContratadas, setHorasContratadas] = useState('4');
   const [valorConsultoria, setValorConsultoria] = useState('');
-  const [modalidade, setModalidade] = useState('Presencial');
+  const [solucao, setSolucao] = useState('');
   const [empresaCredenciada, setEmpresaCredenciada] = useState('AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA');
   const [profissionalResponsavel, setProfissionalResponsavel] = useState('MARCO ANTONIO PAVANI');
 
-  // Multi-empresas sob o mesmo contrato (Guarda-chuva)
-  const [qtdEmpresas, setQtdEmpresas] = useState(1);
+  // Quantidade de Empresas: DEVE VIR EM BRANCO por padrão conforme solicitação
+  const [qtdEmpresas, setQtdEmpresas] = useState('');
+
+  // Dados Individuais da 1ª Empresa
+  const [codigoRae, setCodigoRae] = useState('');
+  const [nomeCliente, setNomeCliente] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [celular, setCelular] = useState('');
+  const [emailCliente, setEmailCliente] = useState('');
+  const [municipio, setMunicipio] = useState('');
+  const [estado, setEstado] = useState('RJ');
+
+  // Lista de Empresas Adicionais (para casos de guarda-chuva > 1)
   const [empresasAdicionais, setEmpresasAdicionais] = useState<EmpresaAdicional[]>([]);
 
   const resetForm = () => {
-    setCodigoRae('');
     setContratoNo('');
     setEdital('');
     setProcessoNo('');
-    setNomeCliente('');
-    setCnpj('');
-    setEmailCliente('');
-    setCelular('');
-    setMunicipio('');
-    setEstado('RJ');
+    setPrograma('FOCO - Sebrae RJ');
+    setModalidade('Remoto');
     setDataAtendimento('');
-    setPrograma('Sebrae Mais');
-    setSolucao('');
     setHorasContratadas('4');
     setValorConsultoria('');
-    setModalidade('Presencial');
-    setQtdEmpresas(1);
+    setSolucao('');
+
+    // Quantidade em branco
+    setQtdEmpresas('');
+
+    // Dados individuais da 1ª empresa
+    setCodigoRae('');
+    setNomeCliente('');
+    setCnpj('');
+    setCelular('');
+    setEmailCliente('');
+    setMunicipio('');
+    setEstado('RJ');
+
     setEmpresasAdicionais([]);
   };
 
@@ -66,17 +77,21 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
     }
   }, [isOpen]);
 
-  // Sincroniza a lista de empresas adicionais conforme o total de empresas muda
-  const handleQtdChange = (newTotal: number) => {
-    const total = Math.max(1, Math.min(50, newTotal || 1));
-    setQtdEmpresas(total);
+  // Calcula total efetivo de empresas
+  const totalEmpresas = parseInt(qtdEmpresas) || 1;
 
-    const needed = total - 1;
+  // Sincroniza a lista de empresas adicionais quando a quantidade muda
+  const handleQtdChange = (valStr: string) => {
+    setQtdEmpresas(valStr);
+    const parsed = parseInt(valStr) || 1;
+    const needed = Math.max(0, Math.min(49, parsed - 1));
+
     setEmpresasAdicionais((prev) => {
       const updated = [...prev];
       if (updated.length < needed) {
         for (let i = updated.length; i < needed; i++) {
           updated.push({
+            codigoRae: '',
             nome: `Empresa ${i + 2}`,
             cnpj: '',
             celular: '',
@@ -108,6 +123,8 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
     e.preventDefault();
 
     const timestamp = Date.now();
+    const count = totalEmpresas;
+
     const baseShared = {
       consultor_id: 'admin-1',
       status: 'novo_contrato' as ProjectStatus,
@@ -132,7 +149,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
       profissional_responsavel: profissionalResponsavel.trim() || 'MARCO ANTONIO PAVANI',
       natureza: 'CONSULTORIA',
       plataforma_utilizada: modalidade,
-      observacoes: qtdEmpresas > 1 ? `Contrato Guarda-Chuva (${qtdEmpresas} empresas no total)` : 'Demanda cadastrada manualmente pelo sistema.',
+      observacoes: count > 1 ? `Contrato Guarda-Chuva (${count} empresas no total)` : 'Demanda cadastrada manualmente pelo sistema.',
       dados_extra: {},
       criado_em: new Date().toISOString(),
       atualizado_em: new Date().toISOString(),
@@ -140,7 +157,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
 
     const projectsToCreate: Project[] = [];
 
-    // 1ª Empresa (Principal do Lançamento)
+    // 1ª Empresa (com seu RAE / CO individual)
     const emp1Name = nomeCliente.trim() || 'Empresa 1';
     const emp1Code = codigoRae.trim() || (contratoNo.trim() ? `${contratoNo.trim()}-01` : `CO-${Math.floor(1000 + Math.random() * 9000)}`);
     projectsToCreate.push({
@@ -156,17 +173,19 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
       email_cliente: emailCliente.trim() || null,
     });
 
-    // Empresas Adicionais (2 até N)
-    if (qtdEmpresas > 1) {
+    // Empresas Adicionais (2 até N - cada uma com seu RAE / CO individual)
+    if (count > 1) {
       empresasAdicionais.forEach((emp, idx) => {
         const num = idx + 2;
         const numStr = num < 10 ? `0${num}` : `${num}`;
-        const name = emp.nome.trim() || `${emp1Name} (Empresa ${num}/${qtdEmpresas})`;
-        const empCode = codigoRae.trim() 
-          ? `${codigoRae.trim()}-${numStr}` 
-          : contratoNo.trim() 
-            ? `${contratoNo.trim()}-${numStr}` 
-            : `CO-${Math.floor(1000 + Math.random() * 9000)}-${numStr}`;
+        const name = emp.nome.trim() || `${emp1Name} (Empresa ${num}/${count})`;
+        const empCode = emp.codigoRae.trim() 
+          ? emp.codigoRae.trim() 
+          : codigoRae.trim() 
+            ? `${codigoRae.trim()}-${numStr}` 
+            : contratoNo.trim() 
+              ? `${contratoNo.trim()}-${numStr}` 
+              : `CO-${Math.floor(1000 + Math.random() * 9000)}-${numStr}`;
 
         projectsToCreate.push({
           ...baseShared,
@@ -203,7 +222,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
               Cadastrar Nova Demanda / Contrato
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Campos livres para RJ (CO) e SP (RAE) com suporte a contratos guarda-chuva multi-empresas
+              Contrato é o guarda-chuva compartilhado; RAE / CO e dados do cliente são de preenchimento individual
             </p>
           </div>
           <button 
@@ -215,37 +234,30 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Dados do Contrato & Guarda-chuva */}
-          <div className="bg-purple-50/60 border border-purple-200/80 rounded-2xl p-4 space-y-3">
+          {/* BLOCO 1: DADOS DO CONTRATO (GUARDA-CHUVA) */}
+          <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers size={14} className="text-purple-600" />
-                Dados do Contrato & Guarda-Chuva
+                <Layers size={15} className="text-purple-600" />
+                Dados do Contrato (Guarda-Chuva)
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-700">Qtd. Empresas:</span>
+                <label className="text-xs font-semibold text-purple-950">Qtd. Empresas:</label>
                 <input 
                   type="number"
                   min={1}
                   max={50}
+                  placeholder="1"
                   value={qtdEmpresas}
-                  onChange={(e) => handleQtdChange(parseInt(e.target.value) || 1)}
-                  className="w-16 bg-white border border-purple-300 rounded-lg px-2 py-1 text-xs text-center font-bold text-purple-900 focus:outline-none focus:border-primary"
+                  onChange={(e) => handleQtdChange(e.target.value)}
+                  className="w-16 bg-white border border-purple-300 rounded-lg px-2 py-1 text-xs text-center font-bold text-purple-900 placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                  title="Deixe em branco para 1 empresa ou digite a quantidade total do contrato (ex: 9)"
                 />
               </div>
             </div>
 
+            {/* Linha 1 do Contrato */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Código RAE / CO (Sebrae)</label>
-                <input
-                  type="text"
-                  value={codigoRae}
-                  onChange={(e) => setCodigoRae(e.target.value)}
-                  placeholder="Ex: CO RJ052026 ou RAE 070873"
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
-                />
-              </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Contrato Nº</label>
                 <input
@@ -266,30 +278,115 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                   className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Processo Nº (opcional)</label>
+                <input
+                  type="text"
+                  value={processoNo}
+                  onChange={(e) => setProcessoNo(e.target.value)}
+                  placeholder="Ex: 1777/2025"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                />
+              </div>
             </div>
 
-            {qtdEmpresas > 1 && (
-              <div className="bg-white/90 border border-purple-200 rounded-xl p-3 text-xs text-purple-900 space-y-2">
-                <p className="font-semibold flex items-center gap-1.5">
-                  <Users size={14} className="text-purple-600" />
-                  Serão gerados {qtdEmpresas} cards vinculados ao mesmo contrato!
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Preencha os dados da 1ª empresa abaixo e edite os nomes das outras {qtdEmpresas - 1} empresas se desejar. Todos compartilharão programa, modalidade, carga horária e valor contratados.
-                </p>
+            {/* Linha 2 do Contrato: Programa, Modalidade e Data */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Programa Sebrae</label>
+                <select
+                  value={programa}
+                  onChange={(e) => setPrograma(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                >
+                  <option value="FOCO - Sebrae RJ">FOCO - Sebrae RJ</option>
+                  <option value="Sebrae Mais">Sebrae Mais</option>
+                  <option value="Brasil Mais">Brasil Mais</option>
+                  <option value="Sebraetec">Sebraetec</option>
+                  <option value="ALI - Agentes Locais">ALI - Agentes Locais</option>
+                  <option value="Outro">Outro Programa</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">(Remoto/Presencial)</label>
+                <select
+                  value={modalidade}
+                  onChange={(e) => setModalidade(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                >
+                  <option value="Remoto">Remoto</option>
+                  <option value="Presencial">Presencial</option>
+                  <option value="Online">Online</option>
+                  <option value="Híbrido">Híbrido</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Data do Atendimento</label>
+                <input
+                  type="text"
+                  value={dataAtendimento}
+                  onChange={(e) => setDataAtendimento(e.target.value)}
+                  placeholder="Ex: 31/07/2026"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            {/* Linha 3 do Contrato: Horas e Valor */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Horas Contratadas (por empresa)</label>
+                <input
+                  type="number"
+                  value={horasContratadas}
+                  onChange={(e) => setHorasContratadas(e.target.value)}
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Valor Unitário da Consultoria (R$)</label>
+                <input
+                  type="number"
+                  value={valorConsultoria}
+                  onChange={(e) => setValorConsultoria(e.target.value)}
+                  placeholder="Ex: 170.00"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+
+            {totalEmpresas > 1 && (
+              <div className="bg-white/90 border border-purple-200 rounded-xl p-2.5 text-xs text-purple-900 flex items-center gap-2">
+                <Users size={15} className="text-purple-600 shrink-0" />
+                <span>
+                  <strong>Guarda-Chuva Ativo:</strong> Serão criados <strong>{totalEmpresas} cards</strong> no Kanban compartilhando este contrato!
+                </span>
               </div>
             )}
           </div>
 
-          {/* Dados da 1ª Empresa */}
-          <div className="space-y-3">
+          {/* BLOCO 2: DADOS DA EMPRESA / CLIENTE (PREENCHIMENTO INDIVIDUAL) */}
+          <div className="space-y-3 pt-1">
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 size={14} className="text-slate-500" />
-              {qtdEmpresas > 1 ? '1ª Empresa (Principal do Lote)' : 'Dados da Empresa / Cliente'}
+              <Building2 size={15} className="text-slate-500" />
+              {totalEmpresas > 1 ? '1ª Empresa (Preenchimento Individual)' : 'Dados da Empresa / Cliente (Preenchimento Individual)'}
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {/* Linha 1 da Empresa: RAE/CO individual, Nome e CNPJ */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Código RAE / CO (Sebrae) *
+                </label>
+                <input
+                  type="text"
+                  value={codigoRae}
+                  onChange={(e) => setCodigoRae(e.target.value)}
+                  placeholder="Ex: CO RJ052026-01 ou RAE 070873"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-medium"
+                />
+              </div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Nome do Cliente / Empresa *</label>
                 <input
                   type="text"
@@ -300,6 +397,10 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                   className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                 />
               </div>
+            </div>
+
+            {/* Linha 2 da Empresa: CNPJ, Celular, Município e Estado */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">CNPJ do Cliente</label>
                 <input
@@ -307,12 +408,9 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                   value={cnpj}
                   onChange={(e) => setCnpj(e.target.value)}
                   placeholder="00.000.000/0001-00"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Celular / WhatsApp</label>
                 <input
@@ -320,7 +418,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                   value={celular}
                   onChange={(e) => setCelular(maskPhone(e.target.value))}
                   placeholder="(21) 99999-9999"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
                 />
               </div>
               <div>
@@ -330,7 +428,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                   value={municipio}
                   onChange={(e) => setMunicipio(e.target.value)}
                   placeholder="Rio de Janeiro"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
                 />
               </div>
               <div>
@@ -338,7 +436,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                 <select
                   value={estado}
                   onChange={(e) => setEstado(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-bold"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary font-bold"
                 >
                   <option value="RJ">RJ - Rio de Janeiro</option>
                   <option value="SP">SP - São Paulo</option>
@@ -355,37 +453,48 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
             </div>
           </div>
 
-          {/* Lista Dinâmica de Empresas Adicionais (2 até N) */}
-          {qtdEmpresas > 1 && empresasAdicionais.length > 0 && (
-            <div className="border border-purple-200 rounded-2xl p-4 bg-slate-50/80 space-y-3">
+          {/* BLOCO 3: EMPRESAS ADICIONAIS DO GUARDA-CHUVA (2 até N) COM RAE/CO INDIVIDUAL */}
+          {totalEmpresas > 1 && empresasAdicionais.length > 0 && (
+            <div className="border border-purple-200 rounded-2xl p-4 bg-slate-50/90 space-y-3">
               <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                 <Users size={14} className="text-primary" />
-                Empresas Adicionais do Projeto (2 até {qtdEmpresas})
+                Demais Empresas do Contrato (Preenchimento Individual)
               </span>
-              <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+              <p className="text-[11px] text-slate-500">
+                Cada empresa possui seu próprio código <strong>RAE / CO</strong> e identificação cadastral:
+              </p>
+
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
                 {empresasAdicionais.map((emp, idx) => (
                   <div key={idx} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
                     <span className="sm:col-span-1 text-xs font-bold text-purple-700">#{idx + 2}</span>
                     <input
                       type="text"
+                      placeholder="Código RAE / CO"
+                      value={emp.codigoRae}
+                      onChange={(e) => handleEmpresaAdicionalChange(idx, 'codigoRae', e.target.value)}
+                      className="sm:col-span-3 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-medium"
+                    />
+                    <input
+                      type="text"
                       placeholder={`Nome da Empresa ${idx + 2}`}
                       value={emp.nome}
                       onChange={(e) => handleEmpresaAdicionalChange(idx, 'nome', e.target.value)}
-                      className="sm:col-span-5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                      className="sm:col-span-4 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                     />
                     <input
                       type="text"
                       placeholder="CNPJ (opcional)"
                       value={emp.cnpj}
                       onChange={(e) => handleEmpresaAdicionalChange(idx, 'cnpj', e.target.value)}
-                      className="sm:col-span-3 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                      className="sm:col-span-2 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                     />
                     <input
                       type="text"
                       placeholder="WhatsApp"
                       value={emp.celular}
                       onChange={(e) => handleEmpresaAdicionalChange(idx, 'celular', maskPhone(e.target.value))}
-                      className="sm:col-span-3 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                      className="sm:col-span-2 bg-slate-50 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
                     />
                   </div>
                 ))}
@@ -393,73 +502,9 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
             </div>
           )}
 
-          {/* Dados do Atendimento & Consultoria */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Programa Sebrae</label>
-              <select
-                value={programa}
-                onChange={(e) => setPrograma(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
-              >
-                <option value="Sebrae Mais">Sebrae Mais</option>
-                <option value="Brasil Mais">Brasil Mais</option>
-                <option value="Sebraetec">Sebraetec</option>
-                <option value="ALI - Agentes Locais">ALI - Agentes Locais</option>
-                <option value="FOCO - Sebrae RJ">FOCO - Sebrae RJ</option>
-                <option value="Outro">Outro Programa</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">(Remoto/Presencial)</label>
-              <select
-                value={modalidade}
-                onChange={(e) => setModalidade(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
-              >
-                <option value="Presencial">Presencial</option>
-                <option value="Remoto">Remoto</option>
-                <option value="Online">Online</option>
-                <option value="Híbrido">Híbrido</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Data do Atendimento</label>
-              <input
-                type="text"
-                value={dataAtendimento}
-                onChange={(e) => setDataAtendimento(e.target.value)}
-                placeholder="Ex: 31/07/2026"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Horas Contratadas (por empresa)</label>
-              <input
-                type="number"
-                value={horasContratadas}
-                onChange={(e) => setHorasContratadas(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Valor Unitário da Consultoria (R$)</label>
-              <input
-                type="number"
-                value={valorConsultoria}
-                onChange={(e) => setValorConsultoria(e.target.value)}
-                placeholder="Ex: 170.00"
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
             <span className="text-[11px] text-slate-500 font-medium">
-              {qtdEmpresas > 1 ? `Criará ${qtdEmpresas} cards no Kanban` : 'Criará 1 card no Kanban'}
+              {totalEmpresas > 1 ? `Criará ${totalEmpresas} cards no Kanban` : 'Criará 1 card no Kanban'}
             </span>
             <div className="flex gap-3">
               <button
@@ -474,7 +519,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                 className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white font-bold rounded-xl text-xs shadow-md shadow-purple-500/20 flex items-center gap-1.5"
               >
                 <Plus size={16} />
-                <span>{qtdEmpresas > 1 ? `Criar ${qtdEmpresas} Demandas no Kanban` : 'Criar Demanda no Kanban'}</span>
+                <span>{totalEmpresas > 1 ? `Criar ${totalEmpresas} Demandas no Kanban` : 'Criar Demanda no Kanban'}</span>
               </button>
             </div>
           </div>
