@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar } from 'lucide-react';
+import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar, Clipboard } from 'lucide-react';
 import type { Project, CompanyConfig } from '../types/database';
 import { supabase } from '../lib/supabase';
 import { cn, maskPhone } from '../lib/utils';
@@ -36,44 +36,66 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     }
   }, [project]);
 
-  // Support Ctrl+V paste of WhatsApp screenshot directly anywhere in panel (except when focused in inputs/textareas)
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handlePaste = (e: ClipboardEvent) => {
-      // Se o usuário estiver focado em um input ou textarea (digitando ou colando texto), NUNCA intercepta!
-      const activeElement = document.activeElement;
-      const activeTag = (activeElement?.tagName || '').toLowerCase();
-      if (activeTag === 'textarea' || activeTag === 'input' || activeElement?.getAttribute('contenteditable') === 'true') {
+  // Função para colar imagem diretamente da área de transferência quando o usuário clica no botão "Colar Print"
+  const handleClipboardPasteButton = async () => {
+    try {
+      if (!navigator.clipboard?.read) {
+        alert('Seu navegador não suporta leitura direta. Clique na caixa de print do WhatsApp e pressione Ctrl + V.');
         return;
       }
-
-      const items = e.clipboardData?.items;
-      if (!items) return;
-
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
-          const blob = items[i].getAsFile();
-          if (blob) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              setFormData((prev) => ({
-                ...prev,
-                dados_extra: {
-                  ...(prev.dados_extra || {}),
-                  foto_cliente: reader.result as string,
-                }
-              }));
-            };
-            reader.readAsDataURL(blob);
-          }
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find(type => type.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setFormData((prev) => ({
+              ...prev,
+              dados_extra: {
+                ...(prev.dados_extra || {}),
+                foto_cliente: reader.result as string,
+              }
+            }));
+          };
+          reader.readAsDataURL(blob);
+          return;
         }
       }
-    };
+      alert('Nenhuma imagem encontrada na área de transferência. Tire um print da tela (Win + Shift + S) e tente novamente.');
+    } catch (err) {
+      console.warn('Clipboard read error:', err);
+      alert('Para colar o print da tela, clique na caixa tracejada do comprovante e pressione Ctrl + V.');
+    }
+  };
 
-    window.addEventListener('paste', handlePaste);
-    return () => window.removeEventListener('paste', handlePaste);
-  }, [isOpen]);
+  // Handler de paste local (acionado APENAS quando o usuário foca na caixa de comprovante do WhatsApp)
+  const handlePhotoBoxPaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file' && items[i].type.startsWith('image/')) {
+        e.preventDefault();
+        e.stopPropagation();
+        const blob = items[i].getAsFile();
+        if (blob) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setFormData((prev) => ({
+              ...prev,
+              dados_extra: {
+                ...(prev.dados_extra || {}),
+                foto_cliente: reader.result as string,
+              }
+            }));
+          };
+          reader.readAsDataURL(blob);
+        }
+        return;
+      }
+    }
+  };
 
   if (!project) return null;
 
@@ -635,9 +657,13 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               />
               <InputField 
                 label="Valor da OS (R$)" 
-                type="number"
-                value={formData.valor_consultoria} 
-                onChange={(v) => handleChange('valor_consultoria', parseFloat(v) || 0)} 
+                type="text"
+                value={formData.valor_consultoria != null ? (typeof formData.valor_consultoria === 'number' ? (Number.isInteger(formData.valor_consultoria) ? formData.valor_consultoria : Number(formData.valor_consultoria).toFixed(2)) : formData.valor_consultoria) : ''} 
+                onChange={(v) => {
+                  const num = parseFloat(String(v).replace(',', '.'));
+                  handleChange('valor_consultoria', isNaN(num) ? 0 : Math.round(num * 100) / 100);
+                }} 
+                placeholder="Ex: 1301.14 ou 1188.00"
               />
               <InputField 
                 label="Data do Atendimento / Início" 
@@ -661,15 +687,23 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               />
               <InputField 
                 label="Horas Contratadas" 
-                type="number"
-                value={formData.horas_contratadas} 
-                onChange={(v) => handleChange('horas_contratadas', parseInt(v) || 0)} 
+                type="text"
+                value={formData.horas_contratadas ?? ''} 
+                onChange={(v) => {
+                  const num = parseFloat(String(v).replace(',', '.'));
+                  handleChange('horas_contratadas', isNaN(num) ? (v === '' ? null : v) : num);
+                }} 
+                placeholder="Ex: 6.5 ou 6,5"
               />
               <InputField 
                 label="Horas Realizadas" 
-                type="number"
-                value={formData.horas_realizadas} 
-                onChange={(v) => handleChange('horas_realizadas', parseInt(v) || 0)} 
+                type="text"
+                value={formData.horas_realizadas ?? ''} 
+                onChange={(v) => {
+                  const num = parseFloat(String(v).replace(',', '.'));
+                  handleChange('horas_realizadas', isNaN(num) ? (v === '' ? null : v) : num);
+                }} 
+                placeholder="Ex: 6.5 ou 6,5"
               />
             </div>
 
@@ -891,9 +925,13 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               </p>
             </div>
 
-            {/* Foto do Atendimento / Print do WhatsApp (Suporta Ctrl+V, Arrastar e Upload) */}
-            <div className="p-4 bg-white rounded-2xl border-2 border-dashed border-purple-200 hover:border-purple-400 transition-colors space-y-3">
-              <div className="flex items-center justify-between">
+            {/* Foto do Atendimento / Print do WhatsApp (Área isolada com botão dedicado e Ctrl+V focado) */}
+            <div 
+              tabIndex={0}
+              onPaste={handlePhotoBoxPaste}
+              className="p-4 bg-white rounded-2xl border-2 border-dashed border-purple-200 hover:border-purple-400 focus:border-purple-500 focus:outline-none transition-colors space-y-3"
+            >
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div>
                   <span className="text-xs font-extrabold text-slate-900 block flex items-center gap-1.5">
                     <Camera size={15} className="text-primary" />
@@ -904,11 +942,23 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                   </span>
                 </div>
 
-                <label className="bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer transition-colors shrink-0 flex items-center gap-1.5">
-                  <Camera size={14} />
-                  <span>{formData.dados_extra?.foto_cliente ? 'Alterar Imagem' : 'Selecionar Arquivo'}</span>
-                  <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClipboardPasteButton}
+                    className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer transition-all shrink-0 flex items-center gap-1.5 shadow-xs hover:shadow-sm"
+                    title="Cola automaticamente a imagem copiada na área de transferência (Print Screen)"
+                  >
+                    <Clipboard size={14} />
+                    <span>Colar Print (Ctrl+V)</span>
+                  </button>
+
+                  <label className="bg-purple-100 hover:bg-purple-200 text-purple-900 text-xs font-bold px-3 py-1.5 rounded-xl cursor-pointer transition-colors shrink-0 flex items-center gap-1.5">
+                    <Camera size={14} />
+                    <span>{formData.dados_extra?.foto_cliente ? 'Alterar Arquivo' : 'Selecionar Arquivo'}</span>
+                    <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                  </label>
+                </div>
               </div>
 
               {formData.dados_extra?.foto_cliente ? (
@@ -933,12 +983,15 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                   </button>
                 </div>
               ) : (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center space-y-1">
+                <div 
+                  onClick={handleClipboardPasteButton}
+                  className="bg-slate-50 hover:bg-purple-50/50 border border-slate-200 hover:border-purple-300 rounded-xl p-3 text-center space-y-1 cursor-pointer transition-colors"
+                >
                   <p className="text-xs font-bold text-slate-700">
-                    💡 Dica: Cole com <kbd className="bg-white border border-slate-300 px-1.5 py-0.5 rounded text-[10px] font-mono text-purple-700 font-black">Ctrl + V</kbd> a captura de tela do WhatsApp!
+                    💡 Dica: Clique aqui e use o botão <span className="text-purple-700 font-extrabold">"Colar Print (Ctrl+V)"</span> ou pressione <kbd className="bg-white border border-slate-300 px-1.5 py-0.5 rounded text-[10px] font-mono text-purple-700 font-black">Ctrl + V</kbd> nesta caixa!
                   </p>
                   <p className="text-[10px] text-slate-400">
-                    Você pode copiar o print da tela no Windows (Win + Shift + S) e colar diretamente nesta janela.
+                    A captura de tela só é inserida quando você clica aqui ou usa o botão acima.
                   </p>
                 </div>
               )}
@@ -1107,14 +1160,30 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
   );
 }
 
-function InputField({ label, value, onChange, type = 'text' }: { label: string, value: any, onChange: (val: string) => void, type?: string }) {
+function InputField({ 
+  label, 
+  value, 
+  onChange, 
+  type = 'text',
+  step,
+  placeholder,
+}: { 
+  label: string; 
+  value: any; 
+  onChange: (val: string) => void; 
+  type?: string;
+  step?: string;
+  placeholder?: string;
+}) {
   return (
     <div>
       <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
       <input 
         type={type}
+        step={step || (type === 'number' ? 'any' : undefined)}
+        placeholder={placeholder}
         className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary transition-all"
-        value={value || ''}
+        value={value !== null && value !== undefined ? value : ''}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>

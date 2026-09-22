@@ -149,7 +149,7 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
           {/* Carga Horária Badge */}
           <span className="bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1 shrink-0">
             <Clock size={11} className="text-sky-600 shrink-0" />
-            <span>{project.horas_contratadas || 4}h</span>
+            <span>{project.horas_contratadas != null ? String(project.horas_contratadas).replace('.', ',') : 4}h</span>
           </span>
         </div>
       </div>

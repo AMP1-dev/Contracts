@@ -25,11 +25,15 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
   const [programa, setPrograma] = useState('Consultoria Sebrae');
   const [modalidade, setModalidade] = useState('Remoto');
   const [dataAtendimento, setDataAtendimento] = useState('');
-  const [horasContratadas, setHorasContratadas] = useState('4');
+  const [horasContratadas, setHorasContratadas] = useState(''); // Deve vir em branco, suporta decimais (ex: 6 ou 6,5)
 
-  // Gestão de Valor: Unitário ou Total do Contrato
-  const [tipoValor, setTipoValor] = useState<'unitario' | 'total'>('unitario');
-  const [valorInput, setValorInput] = useState('170.00');
+  // Gestão de Valor do Contrato (Modos de Cálculo Inteligente)
+  const [modoCalculo, setModoCalculo] = useState<'hora' | 'unitario' | 'total'>('hora');
+  const [valorHora, setValorHora] = useState(''); // Ex: 198,00
+  const [horasRelatorio, setHorasRelatorio] = useState(''); // Ex: 4h de relatórios do contrato
+  const [ratearRelatorio, setRatearRelatorio] = useState(true);
+  const [valorUnitarioManual, setValorUnitarioManual] = useState('');
+  const [valorTotalManual, setValorTotalManual] = useState('');
 
   // Estado e Município padrão do contrato
   const [estado, setEstado] = useState('RJ');
@@ -57,9 +61,13 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
     setPrograma('Consultoria Sebrae');
     setModalidade('Remoto');
     setDataAtendimento('');
-    setHorasContratadas('4');
-    setTipoValor('unitario');
-    setValorInput('170.00');
+    setHorasContratadas('');
+    setModoCalculo('hora');
+    setValorHora('');
+    setHorasRelatorio('');
+    setRatearRelatorio(true);
+    setValorUnitarioManual('');
+    setValorTotalManual('');
     setEstado('RJ');
     setMunicipio('Rio de Janeiro');
 
@@ -81,14 +89,37 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
   // Quantidade efetiva de empresas (se em branco = 1)
   const totalEmpresas = parseInt(qtdEmpresas) || 1;
 
-  // Cálculo de valores (Unitário vs Total)
-  const numValor = parseFloat(valorInput) || 0;
-  const valorUnitario = tipoValor === 'unitario'
-    ? numValor
-    : (totalEmpresas > 0 ? numValor / totalEmpresas : numValor);
-  const valorTotalContrato = tipoValor === 'unitario'
-    ? numValor * totalEmpresas
-    : numValor;
+  // Conversões numéricas seguras com suporte a vírgula brasileira
+  const parseNum = (val: string) => parseFloat(String(val || '').replace(',', '.')) || 0;
+  const parsedHoras = parseNum(horasContratadas);
+  const parsedValorHora = parseNum(valorHora);
+  const parsedHorasRelatorio = parseNum(horasRelatorio);
+
+  // Cálculos dinâmicos de Valores
+  let subtotalConsultoria = 0;
+  let subtotalRelatorios = 0;
+  let valorTotalContrato = 0;
+  let valorUnitario = 0;
+
+  if (modoCalculo === 'hora') {
+    subtotalConsultoria = Math.round(totalEmpresas * parsedHoras * parsedValorHora * 100) / 100;
+    subtotalRelatorios = Math.round(parsedHorasRelatorio * parsedValorHora * 100) / 100;
+    valorTotalContrato = Math.round((subtotalConsultoria + subtotalRelatorios) * 100) / 100;
+    if (ratearRelatorio) {
+      valorUnitario = totalEmpresas > 0 ? Math.round((valorTotalContrato / totalEmpresas) * 100) / 100 : 0;
+    } else {
+      valorUnitario = Math.round(parsedHoras * parsedValorHora * 100) / 100;
+    }
+  } else if (modoCalculo === 'unitario') {
+    const numUnit = parseNum(valorUnitarioManual);
+    valorUnitario = Math.round(numUnit * 100) / 100;
+    valorTotalContrato = Math.round(numUnit * totalEmpresas * 100) / 100;
+  } else {
+    // modoCalculo === 'total'
+    const numTotal = parseNum(valorTotalManual);
+    valorTotalContrato = Math.round(numTotal * 100) / 100;
+    valorUnitario = totalEmpresas > 0 ? Math.round((numTotal / totalEmpresas) * 100) / 100 : 0;
+  }
 
   // Sincroniza lista prévia se o usuário quiser editar na hora
   const handleQtdChange = (val: string) => {
@@ -141,7 +172,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
       programa: programa.trim() || 'Consultoria Sebrae',
       solucao_contratada: 'Consultoria de Gestão e Processos',
       objetivo_atendimento: 'Atendimento e consultoria Sebrae agendados.',
-      horas_contratadas: parseFloat(horasContratadas) || 4,
+      horas_contratadas: parsedHoras || 4,
       horas_realizadas: 0,
       data_atendimento: dataAtendimento.trim() || null,
       data_prevista_inicio: dataAtendimento.trim() || new Date().toISOString().split('T')[0],
@@ -355,75 +386,205 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
               </div>
             </div>
 
-            {/* Linha 3: Horas e Valores (com cálculo inteligente Unitário vs Total) */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
-              <div className="sm:col-span-4">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Horas Contratadas (por empresa)
+            {/* Linha 3: Horas Contratadas e Cálculo Inteligente de Valores */}
+            <div className="space-y-2.5 pt-1 border-t border-purple-200/50">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <DollarSign size={15} className="text-purple-600" />
+                  <span>Cálculo dos Valores do Contrato:</span>
                 </label>
-                <input
-                  type="number"
-                  value={horasContratadas}
-                  onChange={(e) => setHorasContratadas(e.target.value)}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
-                />
+                <div className="flex items-center gap-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setModoCalculo('hora')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                      modoCalculo === 'hora'
+                        ? 'bg-purple-600 text-white shadow-2xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Por Valor/Hora (Sebrae)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModoCalculo('unitario')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                      modoCalculo === 'unitario'
+                        ? 'bg-purple-600 text-white shadow-2xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Por Empresa (OS)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModoCalculo('total')}
+                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                      modoCalculo === 'total'
+                        ? 'bg-purple-600 text-white shadow-2xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Total do Contrato
+                  </button>
+                </div>
               </div>
 
-              <div className="sm:col-span-8 space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Valor da Consultoria:
-                  </label>
-                  <div className="flex items-center gap-2 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => setTipoValor('unitario')}
-                      className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                        tipoValor === 'unitario'
-                          ? 'bg-purple-600 text-white shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      Por Empresa
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTipoValor('total')}
-                      className={`px-2 py-0.5 rounded-md font-semibold transition-all ${
-                        tipoValor === 'total'
-                          ? 'bg-purple-600 text-white shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      Total do Contrato
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-2 text-xs text-slate-400 font-bold">R$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={valorInput}
-                      onChange={(e) => setValorInput(e.target.value)}
-                      placeholder={tipoValor === 'unitario' ? 'Ex: 170.00' : 'Ex: 1530.00'}
-                      className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
-                    />
-                  </div>
-
-                  {totalEmpresas > 1 && (
-                    <div className="bg-purple-100/80 text-purple-900 border border-purple-200 px-3 py-1.5 rounded-xl text-[11px] font-bold shrink-0">
-                      {tipoValor === 'unitario' ? (
-                        <span>Total: {formatCurrency(valorTotalContrato)}</span>
-                      ) : (
-                        <span>Unitário: {formatCurrency(valorUnitario)}</span>
-                      )}
+              {modoCalculo === 'hora' && (
+                <div className="bg-white p-3.5 rounded-xl border border-purple-200 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Horas / Empresa (ex: 6 ou 6,5)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={horasContratadas}
+                        onChange={(e) => setHorasContratadas(e.target.value)}
+                        placeholder="Ex: 6 ou 6,5"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                      />
                     </div>
-                  )}
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Valor da Hora (R$)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">R$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={valorHora}
+                          onChange={(e) => setValorHora(e.target.value)}
+                          placeholder="Ex: 198,00"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Horas de Relatórios (Contrato)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={horasRelatorio}
+                        onChange={(e) => setHorasRelatorio(e.target.value)}
+                        placeholder="Ex: 4 (opcional)"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Resumo do Cálculo Sebrae */}
+                  <div className="flex items-center justify-between bg-purple-50/90 p-2.5 rounded-lg text-xs border border-purple-200 flex-wrap gap-2">
+                    <div className="space-y-0.5">
+                      <span className="text-purple-950 font-extrabold block text-xs">
+                        Base de cálculo apurada:
+                      </span>
+                      <span className="text-[11px] text-purple-900 font-medium">
+                        {totalEmpresas} {totalEmpresas === 1 ? 'empresa' : 'empresas'} × {parsedHoras}h × {formatCurrency(parsedValorHora)} = {formatCurrency(subtotalConsultoria)}
+                        {parsedHorasRelatorio > 0 && ` + Relatórios (${parsedHorasRelatorio}h): ${formatCurrency(subtotalRelatorios)}`}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[11px] text-slate-500 font-bold">Total do Contrato: <strong className="text-slate-900 text-xs">{formatCurrency(valorTotalContrato)}</strong></div>
+                      <div className="text-purple-900 font-black text-xs">
+                        Valor da OS / Empresa: <span className="underline bg-white px-1.5 py-0.5 rounded border border-purple-200">{formatCurrency(valorUnitario)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {modoCalculo === 'unitario' && (
+                <div className="bg-white p-3.5 rounded-xl border border-purple-200 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Horas Contratadas (por empresa)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={horasContratadas}
+                        onChange={(e) => setHorasContratadas(e.target.value)}
+                        placeholder="Ex: 6 ou 6,5"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Valor da OS por Empresa (R$)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">R$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={valorUnitarioManual}
+                          onChange={(e) => setValorUnitarioManual(e.target.value)}
+                          placeholder="Ex: 1301.14 ou 1188.00"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between bg-purple-50/90 p-2.5 rounded-lg text-xs border border-purple-200">
+                    <span className="text-purple-900 font-bold">
+                      {totalEmpresas} {totalEmpresas === 1 ? 'empresa' : 'empresas'} × {formatCurrency(valorUnitario)}
+                    </span>
+                    <span className="text-purple-950 font-extrabold text-xs">
+                      Total do Contrato: <strong className="bg-white px-2 py-0.5 rounded border border-purple-200">{formatCurrency(valorTotalContrato)}</strong>
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {modoCalculo === 'total' && (
+                <div className="bg-white p-3.5 rounded-xl border border-purple-200 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Horas Contratadas (por empresa)
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={horasContratadas}
+                        onChange={(e) => setHorasContratadas(e.target.value)}
+                        placeholder="Ex: 6 ou 6,5"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Valor Total do Contrato (R$)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">R$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={valorTotalManual}
+                          onChange={(e) => setValorTotalManual(e.target.value)}
+                          placeholder="Ex: 9108.00"
+                          className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between bg-purple-50/90 p-2.5 rounded-lg text-xs border border-purple-200">
+                    <span className="text-purple-900 font-bold">
+                      Total: {formatCurrency(valorTotalContrato)} ÷ {totalEmpresas} {totalEmpresas === 1 ? 'empresa' : 'empresas'}
+                    </span>
+                    <span className="text-purple-950 font-extrabold text-xs">
+                      Valor por Empresa (OS): <strong className="bg-white px-2 py-0.5 rounded border border-purple-200">{formatCurrency(valorUnitario)}</strong>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Localização Padrão */}
