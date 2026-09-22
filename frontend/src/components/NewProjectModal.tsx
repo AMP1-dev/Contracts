@@ -334,9 +334,9 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
               </div>
             </div>
 
-            {/* Linha 2: Programa, Modalidade e Período de Atendimento */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
+            {/* Linha 2: Programa, Modalidade, Período e Horas Contratadas (Parte Superior) */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              <div className="sm:col-span-4">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Programa Sebrae
                 </label>
@@ -357,7 +357,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                   <option value="Consultoria de Gestão Financeira" />
                 </datalist>
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   (Remoto/Presencial)
                 </label>
@@ -372,26 +372,40 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                   <option value="Híbrido">Híbrido</option>
                 </select>
               </div>
-              <div>
+              <div className="sm:col-span-3">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Período / Data do Atendimento
+                  Período / Data
                 </label>
                 <input
                   type="text"
                   value={dataAtendimento}
                   onChange={(e) => setDataAtendimento(e.target.value)}
-                  placeholder="Ex: 31/07/2026 ou Jul/Ago 2026"
+                  placeholder="Ex: 31/07/2026"
                   className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="sm:col-span-3">
+                <label className="block text-xs font-extrabold text-purple-950 mb-1 flex items-center justify-between">
+                  <span>Horas Contratadas *</span>
+                  <span className="text-[10px] text-purple-700 font-semibold">(ex: 6,5)</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={horasContratadas}
+                  onChange={(e) => setHorasContratadas(e.target.value)}
+                  placeholder="Ex: 6.5 ou 6,5"
+                  className="w-full bg-white border-2 border-purple-400 rounded-xl px-3 py-2 text-xs text-purple-950 font-black focus:outline-none focus:border-primary shadow-xs"
                 />
               </div>
             </div>
 
-            {/* Linha 3: Horas Contratadas e Cálculo Inteligente de Valores */}
+            {/* Linha 3: Cálculo Inteligente e Fechamento de Valores do Contrato */}
             <div className="space-y-2.5 pt-1 border-t border-purple-200/50">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                   <DollarSign size={15} className="text-purple-600" />
-                  <span>Cálculo dos Valores do Contrato:</span>
+                  <span>Fechamento de Valores do Contrato:</span>
                 </label>
                 <div className="flex items-center gap-1 text-[11px]">
                   <button
@@ -432,20 +446,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
 
               {modoCalculo === 'hora' && (
                 <div className="bg-white p-3.5 rounded-xl border border-purple-200 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Horas / Empresa (ex: 6 ou 6,5)
-                      </label>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={horasContratadas}
-                        onChange={(e) => setHorasContratadas(e.target.value)}
-                        placeholder="Ex: 6 ou 6,5"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
                         Valor da Hora (R$)
@@ -464,7 +465,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Horas de Relatórios (Contrato)
+                        Horas de Relatórios (Contrato todo)
                       </label>
                       <input
                         type="text"
@@ -484,7 +485,7 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
                         Base de cálculo apurada:
                       </span>
                       <span className="text-[11px] text-purple-900 font-medium">
-                        {totalEmpresas} {totalEmpresas === 1 ? 'empresa' : 'empresas'} × {parsedHoras}h × {formatCurrency(parsedValorHora)} = {formatCurrency(subtotalConsultoria)}
+                        {totalEmpresas} {totalEmpresas === 1 ? 'empresa' : 'empresas'} × {parsedHoras || '6,5'}h × {formatCurrency(parsedValorHora)} = {formatCurrency(subtotalConsultoria)}
                         {parsedHorasRelatorio > 0 && ` + Relatórios (${parsedHorasRelatorio}h): ${formatCurrency(subtotalRelatorios)}`}
                       </span>
                     </div>
@@ -500,35 +501,20 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
 
               {modoCalculo === 'unitario' && (
                 <div className="bg-white p-3.5 rounded-xl border border-purple-200 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Horas Contratadas (por empresa)
-                      </label>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Valor da OS por Empresa (R$)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">R$</span>
                       <input
                         type="text"
                         inputMode="decimal"
-                        value={horasContratadas}
-                        onChange={(e) => setHorasContratadas(e.target.value)}
-                        placeholder="Ex: 6 ou 6,5"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                        value={valorUnitarioManual}
+                        onChange={(e) => setValorUnitarioManual(e.target.value)}
+                        placeholder="Ex: 1301.14 ou 1188.00"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Valor da OS por Empresa (R$)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">R$</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={valorUnitarioManual}
-                          onChange={(e) => setValorUnitarioManual(e.target.value)}
-                          placeholder="Ex: 1301.14 ou 1188.00"
-                          className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
-                        />
-                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between bg-purple-50/90 p-2.5 rounded-lg text-xs border border-purple-200">
@@ -544,35 +530,20 @@ export function NewProjectModal({ isOpen, onClose, onCreate }: NewProjectModalPr
 
               {modoCalculo === 'total' && (
                 <div className="bg-white p-3.5 rounded-xl border border-purple-200 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Horas Contratadas (por empresa)
-                      </label>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Valor Total do Contrato (R$)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">R$</span>
                       <input
                         type="text"
                         inputMode="decimal"
-                        value={horasContratadas}
-                        onChange={(e) => setHorasContratadas(e.target.value)}
-                        placeholder="Ex: 6 ou 6,5"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
+                        value={valorTotalManual}
+                        onChange={(e) => setValorTotalManual(e.target.value)}
+                        placeholder="Ex: 9108.00"
+                        className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                        Valor Total do Contrato (R$)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">R$</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={valorTotalManual}
-                          onChange={(e) => setValorTotalManual(e.target.value)}
-                          placeholder="Ex: 9108.00"
-                          className="w-full bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:border-primary"
-                        />
-                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between bg-purple-50/90 p-2.5 rounded-lg text-xs border border-purple-200">

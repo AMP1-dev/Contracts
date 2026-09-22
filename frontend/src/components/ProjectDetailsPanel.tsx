@@ -118,9 +118,18 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     setIsSaving(true);
     setSaveSuccess(true);
 
+    const parseDec = (v: any) => {
+      if (v === '' || v === null || v === undefined) return null;
+      const n = parseFloat(String(v).replace(',', '.'));
+      return isNaN(n) ? null : n;
+    };
+
     const updatedData: Project = {
       ...project,
       ...formData,
+      horas_contratadas: parseDec(formData.horas_contratadas),
+      horas_realizadas: parseDec(formData.horas_realizadas) || 0,
+      valor_consultoria: parseDec(formData.valor_consultoria),
       nome_cliente: formData.nome_cliente || formData.razao_social || project.nome_cliente,
       razao_social: formData.razao_social || formData.nome_cliente || project.razao_social,
       atualizado_em: new Date().toISOString(),
@@ -659,10 +668,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 label="Valor da OS (R$)" 
                 type="text"
                 value={formData.valor_consultoria != null ? (typeof formData.valor_consultoria === 'number' ? (Number.isInteger(formData.valor_consultoria) ? formData.valor_consultoria : Number(formData.valor_consultoria).toFixed(2)) : formData.valor_consultoria) : ''} 
-                onChange={(v) => {
-                  const num = parseFloat(String(v).replace(',', '.'));
-                  handleChange('valor_consultoria', isNaN(num) ? 0 : Math.round(num * 100) / 100);
-                }} 
+                onChange={(v) => handleChange('valor_consultoria', v)} 
                 placeholder="Ex: 1301.14 ou 1188.00"
               />
               <InputField 
@@ -689,20 +695,14 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                 label="Horas Contratadas" 
                 type="text"
                 value={formData.horas_contratadas ?? ''} 
-                onChange={(v) => {
-                  const num = parseFloat(String(v).replace(',', '.'));
-                  handleChange('horas_contratadas', isNaN(num) ? (v === '' ? null : v) : num);
-                }} 
+                onChange={(v) => handleChange('horas_contratadas', v)} 
                 placeholder="Ex: 6.5 ou 6,5"
               />
               <InputField 
                 label="Horas Realizadas" 
                 type="text"
                 value={formData.horas_realizadas ?? ''} 
-                onChange={(v) => {
-                  const num = parseFloat(String(v).replace(',', '.'));
-                  handleChange('horas_realizadas', isNaN(num) ? (v === '' ? null : v) : num);
-                }} 
+                onChange={(v) => handleChange('horas_realizadas', v)} 
                 placeholder="Ex: 6.5 ou 6,5"
               />
             </div>
@@ -1175,6 +1175,15 @@ function InputField({
   step?: string;
   placeholder?: string;
 }) {
+  const [localValue, setLocalValue] = useState<string>(() => (value !== null && value !== undefined ? String(value) : ''));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalValue(value !== null && value !== undefined ? String(value) : '');
+    }
+  }, [value, isFocused]);
+
   return (
     <div>
       <label className="block text-xs font-semibold text-slate-600 mb-1">{label}</label>
@@ -1182,9 +1191,17 @@ function InputField({
         type={type}
         step={step || (type === 'number' ? 'any' : undefined)}
         placeholder={placeholder}
-        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary transition-all"
-        value={value !== null && value !== undefined ? value : ''}
-        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-primary transition-all font-medium"
+        value={isFocused ? localValue : (value !== null && value !== undefined ? String(value) : '')}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          onChange(localValue);
+        }}
+        onChange={(e) => {
+          setLocalValue(e.target.value);
+          onChange(e.target.value);
+        }}
       />
     </div>
   );
