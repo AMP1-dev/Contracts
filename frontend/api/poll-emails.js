@@ -163,6 +163,9 @@ export default async function handler(req, res) {
             if (osPdfAttachment && osPdfAttachment.content) {
               try {
                 const pdfjsLib = await import('pdfjs-dist/build/pdf.js');
+                const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.js');
+                pdfjsLib.PDFWorker._mainThreadWorkerMessageHandler = pdfjsWorker.WorkerMessageHandler;
+
                 const data = new Uint8Array(osPdfAttachment.content);
                 const loadingTask = pdfjsLib.getDocument({
                   data,
@@ -296,11 +299,18 @@ export default async function handler(req, res) {
             // Cria ou atualiza o card em projetos no Kanban com dados reais
             if (clienteNome || codigoRae) {
               let existingProj = null;
-              if (codigoRae) {
+              if (codigoRae || parsedPdfData?.osNumber) {
+                const searchFilters = [];
+                if (codigoRae) searchFilters.push(`codigo_rae.eq.${codigoRae}`);
+                if (parsedPdfData?.osNumber) {
+                  searchFilters.push(`codigo_rae.eq.${parsedPdfData.osNumber}`);
+                  searchFilters.push(`observacoes.ilike.%${parsedPdfData.osNumber}%`);
+                }
                 const { data: p } = await supabase
                   .from('projetos')
                   .select('id')
-                  .eq('codigo_rae', codigoRae)
+                  .or(searchFilters.join(','))
+                  .limit(1)
                   .maybeSingle();
                 existingProj = p;
               }
