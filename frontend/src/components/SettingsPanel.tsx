@@ -12,7 +12,7 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePassword }: SettingsPanelProps) {
-  const [activeTab, setActiveTab] = useState<'logo' | 'agenda' | 'security' | 'subscription' | 'keywords' | 'smtp' | 'telegram' | 'autentique'>('agenda');
+  const [activeTab, setActiveTab] = useState<'logo' | 'agenda' | 'security' | 'subscription' | 'keywords' | 'smtp' | 'imap' | 'telegram' | 'autentique'>('agenda');
   
   // Logo & Branding state
   const [logoUrl, setLogoUrl] = useState(config.logoUrl || '');
@@ -58,6 +58,15 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
   const [smtpSenderName, setSmtpSenderName] = useState(config.smtpSenderName || 'AMP Consultorias & Gestão');
   const [smtpUseSSL, setSmtpUseSSL] = useState(config.smtpUseSSL ?? true);
   const [smtpSuccessMsg, setSmtpSuccessMsg] = useState('');
+
+  // Custom Domain IMAP State (Captura de Demandas)
+  const [imapHost, setImapHost] = useState(config.imapHost || 'mail.amp.ia.br');
+  const [imapPort, setImapPort] = useState(config.imapPort || 993);
+  const [imapUser, setImapUser] = useState(config.imapUser || 'suporte@amp.ia.br');
+  const [imapPass, setImapPass] = useState(config.imapPass || '');
+  const [imapUseSSL, setImapUseSSL] = useState(config.imapUseSSL ?? true);
+  const [imapSuccessMsg, setImapSuccessMsg] = useState('');
+  const [isTestingImap, setIsTestingImap] = useState(false);
 
   // Telegram Bot State
   const [telegramBotToken, setTelegramBotToken] = useState(config.telegramBotToken || '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo');
@@ -146,6 +155,51 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
     });
     setSmtpSuccessMsg('Configurações de SMTP do seu domínio salvas com sucesso!');
     setTimeout(() => setSaveSuccessMsg(''), 3000);
+  };
+
+  const handleSaveImap = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdateConfig({
+      ...config,
+      imapHost: imapHost.trim(),
+      imapPort: Number(imapPort),
+      imapUser: imapUser.trim(),
+      imapPass: imapPass.trim(),
+      imapUseSSL: imapUseSSL,
+    });
+    setImapSuccessMsg('Configurações de IMAP salvas com sucesso no banco de dados!');
+    setTimeout(() => setImapSuccessMsg(''), 3000);
+  };
+
+  const handleTestImap = async () => {
+    if (!imapHost.trim() || !imapUser.trim() || !imapPass.trim()) {
+      alert('Por favor, preencha o Servidor IMAP, E-mail e Senha para testar.');
+      return;
+    }
+    setIsTestingImap(true);
+    try {
+      const res = await fetch('/api/test-imap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          host: imapHost.trim(),
+          port: Number(imapPort),
+          user: imapUser.trim(),
+          pass: imapPass.trim(),
+          useSSL: imapUseSSL,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`✅ ${data.message}`);
+      } else {
+        alert(`❌ Falha no teste IMAP:\n${data.error || 'Erro desconhecido'}`);
+      }
+    } catch (err: any) {
+      alert('Erro de conexão ao testar IMAP: ' + err.message);
+    } finally {
+      setIsTestingImap(false);
+    }
   };
 
   const handleAddKeyword = (e: React.FormEvent) => {
@@ -258,7 +312,19 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
           }`}
         >
           <Server size={18} />
-          <span>SMTP do Domínio (Envio E-mail)</span>
+          <span>SMTP (Envio E-mail)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('imap')}
+          className={`pb-3 text-sm font-semibold border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
+            activeTab === 'imap'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Mail size={18} />
+          <span>IMAP (Captura de E-mails)</span>
         </button>
 
         <button
@@ -612,6 +678,118 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
                 >
                   <Save size={16} />
                   <span>Salvar Servidor SMTP do Domínio</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Tab IMAP: Servidor de Entrada e Captura de Demandas */}
+        {activeTab === 'imap' && (
+          <div className="max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800">Servidor IMAP (Captura Automática de E-mails)</h2>
+              <p className="text-xs text-slate-500">
+                Configure os dados da sua caixa postal para que o sistema leia automaticamente os e-mails recebidos e transforme as Ordens de Serviço e Demandas em cards no Kanban.
+              </p>
+            </div>
+
+            {imapSuccessMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold rounded-xl flex items-center gap-2">
+                <Check size={16} />
+                <span>{imapSuccessMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveImap} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Servidor IMAP (Host)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={imapHost}
+                    onChange={(e) => setImapHost(e.target.value)}
+                    placeholder="mail.amp.ia.br ou imap.uni5.net"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Porta IMAP
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={imapPort}
+                    onChange={(e) => setImapPort(Number(e.target.value))}
+                    placeholder="993"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    E-mail da Caixa de Entrada (Usuário IMAP)
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={imapUser}
+                    onChange={(e) => setImapUser(e.target.value)}
+                    placeholder="suporte@amp.ia.br ou consultoria@amp.ia.br"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Senha da Conta de E-mail
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={imapPass}
+                    onChange={(e) => setImapPass(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-primary font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="useSSLImap"
+                  checked={imapUseSSL}
+                  onChange={(e) => setImapUseSSL(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500 border-slate-300"
+                />
+                <label htmlFor="useSSLImap" className="text-xs font-medium text-slate-700 cursor-pointer">
+                  Utilizar SSL / TLS seguro (Recomendado para porta 993)
+                </label>
+              </div>
+
+              <div className="pt-3 flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center gap-2"
+                >
+                  <Save size={16} />
+                  <span>Salvar Configurações IMAP</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTestImap}
+                  disabled={isTestingImap}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-300 transition-all flex items-center gap-2"
+                >
+                  <Send size={15} className="text-purple-600" />
+                  <span>{isTestingImap ? 'Testando Conexão...' : 'Testar Conexão IMAP'}</span>
                 </button>
               </div>
             </form>

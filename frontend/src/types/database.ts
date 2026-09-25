@@ -137,5 +137,12 @@ export interface CompanyConfig {
   // Link de Agendamento (Google Calendar / Calendly / etc) & WhatsApp Template
   calendarLink?: string;
   whatsappTemplate?: string;
+
+  // Servidor IMAP (Entrada e Captura de E-mails / Demandas)
+  imapHost?: string;
+  imapPort?: number;
+  imapUser?: string;
+  imapPass?: string;
+  imapUseSSL?: boolean;
 }
 

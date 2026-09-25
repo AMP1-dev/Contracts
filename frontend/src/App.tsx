@@ -11,6 +11,7 @@ import { SubscriptionModal } from './components/SubscriptionModal';
 import { SuspendedAccessModal } from './components/SuspendedAccessModal';
 import { SuperAdminPanel } from './components/SuperAdminPanel';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { supabase } from './lib/supabase';
 import type { UserSession, CompanyConfig } from './types/database';
 
 type ViewState = 'kanban' | 'inbox' | 'consultores' | 'configuracoes' | 'superadmin';
@@ -91,6 +92,11 @@ function App() {
       smtpUser: 'suporte@amp.ia.br',
       smtpSenderName: 'AMP Consultorias & Gestão',
       smtpUseSSL: true,
+      imapHost: 'mail.amp.ia.br',
+      imapPort: 993,
+      imapUser: 'suporte@amp.ia.br',
+      imapPass: '',
+      imapUseSSL: true,
       telegramBotToken: '8881587002:AAE1BoSfGMSV4n96A1ISyNVscJJ-v0Ca8zo',
       telegramChatId: '1715550729',
       telegramEnabled: true,
@@ -101,6 +107,31 @@ function App() {
     };
   });
 
+  // Carrega configuração persistente do banco Supabase ao iniciar
+  useEffect(() => {
+    async function loadRemoteConfig() {
+      try {
+        const { data, error } = await supabase
+          .from('projetos')
+          .select('dados_extra')
+          .eq('id', '__system_company_config__')
+          .maybeSingle();
+
+        if (!error && data?.dados_extra && typeof data.dados_extra === 'object' && Object.keys(data.dados_extra).length > 0) {
+          const remoteConfig = data.dados_extra as Partial<CompanyConfig>;
+          setCompanyConfig((prev) => {
+            const merged = { ...prev, ...remoteConfig };
+            localStorage.setItem('amp_company_config', JSON.stringify(merged));
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar configuração do Supabase:', err);
+      }
+    }
+    loadRemoteConfig();
+  }, []);
+
   // Save session changes
   useEffect(() => {
     if (session) {
@@ -110,10 +141,23 @@ function App() {
     }
   }, [session]);
 
-  // Save config changes
-  const handleUpdateConfig = (newConfig: CompanyConfig) => {
+  // Save config changes both locally and in Supabase
+  const handleUpdateConfig = async (newConfig: CompanyConfig) => {
     setCompanyConfig(newConfig);
     localStorage.setItem('amp_company_config', JSON.stringify(newConfig));
+
+    try {
+      await supabase.from('projetos').upsert({
+        id: '__system_company_config__',
+        nome_cliente: '__SYSTEM_CONFIG__',
+        razao_social: '__SYSTEM_CONFIG__',
+        status: '__system__' as any,
+        dados_extra: newConfig,
+        atualizado_em: new Date().toISOString()
+      }, { onConflict: 'id' });
+    } catch (err) {
+      console.warn('Erro ao salvar configuração no Supabase:', err);
+    }
   };
 
   // Check password

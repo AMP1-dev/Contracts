@@ -150,18 +150,33 @@ export function Inbox() {
 
   const handleSyncEmails = async () => {
     try {
-      // Refresh local list first to show loading state if needed
       setLoading(true);
-      // Dispara o robô de e-mails na nuvem
-      const { error } = await supabase.functions.invoke('poll-emails');
-      if (error) throw new Error(error.message);
-      
+      // Dispara o robô de sincronização via API do próprio domínio
+      const res = await fetch('/api/poll-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Erro na API (${res.status}): ${res.statusText}`);
+      }
+
+      const data = await res.json();
+      if (!data.ok) {
+        if (data.requiresConfig) {
+          alert('⚠️ ' + data.message);
+          return;
+        }
+        throw new Error(data.error || 'Erro desconhecido ao processar e-mails');
+      }
+
       // Busca os emails novos que o robô acabou de salvar
       await fetchEmails();
-      alert('Sincronização concluída! A caixa foi atualizada.');
+      alert(`✅ ${data.message || 'Sincronização concluída com sucesso!'}`);
     } catch (err: any) {
       console.error(err);
       alert('Erro ao sincronizar e-mails: ' + err.message);
+    } finally {
       setLoading(false);
     }
   };

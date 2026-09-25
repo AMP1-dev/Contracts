@@ -369,6 +369,11 @@ function deduplicateProjects(list: Project[], isFromDatabase: boolean = false): 
         itemNome.includes('inovação metalúrgica')
       );
 
+      // Ignora registros internos de configuração do sistema
+      if (itemId.startsWith('__system_') || (item as any).status === '__system__') {
+        continue;
+      }
+
       const isDeletedByUser = !isFromDatabase && (
         (itemId && deletedIds.has(itemId)) ||
         (itemRae && deletedIds.has(itemRae)) ||
