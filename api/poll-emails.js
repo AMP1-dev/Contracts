@@ -19,23 +19,24 @@ export default async function handler(req, res) {
 
   try {
     let imapConfig = req.body?.imapConfig || {};
+    let extraConfig = {};
 
-    // Se as credenciais não vieram no body, busca das configurações salvas no banco
-    if (!imapConfig.host || !imapConfig.user || !imapConfig.pass) {
-      const { data: configRow } = await supabase
-        .from('projetos')
-        .select('dados_extra')
-        .eq('id', '__system_company_config__')
-        .maybeSingle();
+    // Busca das configurações salvas no banco
+    const { data: configRow } = await supabase
+      .from('projetos')
+      .select('dados_extra')
+      .eq('id', '__system_company_config__')
+      .maybeSingle();
 
-      if (configRow?.dados_extra) {
-        const extra = configRow.dados_extra.company_config || configRow.dados_extra;
+    if (configRow?.dados_extra) {
+      extraConfig = configRow.dados_extra.company_config || configRow.dados_extra;
+      if (!imapConfig.host || !imapConfig.user || !imapConfig.pass) {
         imapConfig = {
-          host: extra.imapHost || extra.smtpHost || 'imap.uni5.net',
-          port: extra.imapPort || 993,
-          user: extra.imapUser || extra.smtpUser || '',
-          pass: extra.imapPass || extra.smtpPass || '',
-          useSSL: extra.imapUseSSL !== false
+          host: extraConfig.imapHost || extraConfig.smtpHost || 'imap.uni5.net',
+          port: extraConfig.imapPort || 993,
+          user: extraConfig.imapUser || extraConfig.smtpUser || '',
+          pass: extraConfig.imapPass || extraConfig.smtpPass || '',
+          useSSL: extraConfig.imapUseSSL !== false
         };
       }
     }
@@ -115,8 +116,63 @@ export default async function handler(req, res) {
           const parsed = await simpleParser(fullMessage.content);
 
           let anexoNome = null;
+          let parsedPdfData = null;
+
           if (parsed.attachments && parsed.attachments.length > 0) {
             anexoNome = parsed.attachments.map(a => a.filename).filter(Boolean).join(', ');
+
+            // Procura anexo PDF de Ordem de Serviço para extrair dados reais do cliente
+            const osPdfAttachment = parsed.attachments.find(a => 
+              a.filename && (a.filename.toLowerCase().endsWith('.pdf') || a.contentType === 'application/pdf') &&
+              !a.filename.toLowerCase().includes('orienta') && !a.filename.toLowerCase().includes('reembolso')
+            ) || parsed.attachments.find(a => a.filename && a.filename.toLowerCase().endsWith('.pdf'));
+
+            if (osPdfAttachment && osPdfAttachment.content) {
+              try {
+                const { PDFParse } = await import('pdf-parse');
+                const p = new PDFParse({ data: osPdfAttachment.content });
+                const pdfRes = await p.getText();
+                const pdfText = pdfRes?.text || '';
+
+                if (pdfText) {
+                  const osMatch = pdfText.match(/(?:N[º°]?\s*ORDEM\s*SERVIÇO|Ordem\s*de\s*Serviço\s*n[º°]?)\s*[:\s]*([0-9\/\-]+)/i);
+                  const sgfMatch = pdfText.match(/CÓDIGO\s*SGF\s*[:\s]*([A-Z0-9]+)/i);
+                  const gestorMatch = pdfText.match(/GESTOR\s*RESPONSÁVEL\s*[:\s]*([A-Z\s]+?)(?=\s*E-MAIL|\s*CÓDIGO|$)/i);
+                  const emailGestorMatch = pdfText.match(/E-MAIL\s*[:\s]*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+                  const produtoMatch = pdfText.match(/PRODUTO\s*APLICADO\s*[:\s]*([^]+?)(?=\s*OBJETO|\s*DADOS DO|$)/i);
+                  const raeMatch = pdfText.match(/RAE\s*[:\s]*([0-9]+)/i);
+                  const clienteMatch = pdfText.match(/CLIENTE\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\-]+?)(?=\s*CONTATO|\s*E-MAIL|\s*VIGÊNCIA|$)/i);
+                  const empresaMatch = pdfText.match(/EMPRESA\s*[:\s]*([^]+?)(?=\s*CLIENTE|\s*RAE|\s*CONTATO|$)/i);
+                  const contatoMatch = pdfText.match(/CONTATO\s*[:\s]*([0-9\(\)\s\-]+)/i);
+                  const emailClienteMatch = pdfText.match(/E-MAIL\s*[:\s]*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi);
+                  const valorMatch = pdfText.match(/VALOR\s*(?:TOTAL\s*DA\s*ORDEM\s*DE\s*SERVIÇO|DA\s*PRESTAÇÃO\s*DE\s*SERVIÇOS)\s*[:\s]*R\$\s*([0-9.,]+)/i);
+                  const dataPrevistaMatch = pdfText.match(/DATA\s*PREVISTA\s*PARA\s*EXECUÇÃO\s*[:\s]*([0-9\/]+)/i);
+
+                  let cleanEmailCliente = null;
+                  if (emailClienteMatch && emailClienteMatch.length > 1) {
+                    cleanEmailCliente = emailClienteMatch[1].replace(/^E-MAIL:\s*/i, '').trim();
+                  }
+
+                  parsedPdfData = {
+                    osNumber: osMatch ? osMatch[1].trim() : null,
+                    sgf: sgfMatch ? sgfMatch[1].trim() : null,
+                    gestor: gestorMatch ? gestorMatch[1].trim() : null,
+                    emailGestor: emailGestorMatch ? emailGestorMatch[1].trim() : null,
+                    produto: produtoMatch ? produtoMatch[1].trim().replace(/\s+/g, ' ') : null,
+                    rae: raeMatch ? raeMatch[1].trim() : null,
+                    clienteNome: clienteMatch ? clienteMatch[1].trim() : null,
+                    empresa: empresaMatch ? empresaMatch[1].trim().replace(/\s+/g, ' ') : null,
+                    contato: contatoMatch ? contatoMatch[1].trim() : null,
+                    emailCliente: cleanEmailCliente,
+                    valor: valorMatch ? parseFloat(valorMatch[1].replace('.', '').replace(',', '.')) : 170.0,
+                    dataPrevista: dataPrevistaMatch ? dataPrevistaMatch[1].trim() : null
+                  };
+                  console.log(`[POLL] 📄 PDF analisado com sucesso! Cliente: ${parsedPdfData.clienteNome}, RAE: ${parsedPdfData.rae}`);
+                }
+              } catch (pdfErr) {
+                console.error('[POLL] Erro ao extrair texto do PDF:', pdfErr.message);
+              }
+            }
           }
 
           // Analisa se o assunto ou corpo contém indicadores de Sebrae / OS / Contrato / RAE / CO
@@ -136,12 +192,15 @@ export default async function handler(req, res) {
           if (isDemanda) {
             // Extrai dados para criação do projeto
             const raeMatch = assunto.match(/(?:nº|n°|rae|os|co)[\s:]*([0-9\/\-]+)/i);
-            const codigoRae = raeMatch ? raeMatch[1] : null;
+            const codigoRae = parsedPdfData?.rae || (raeMatch ? raeMatch[1] : null);
 
-            let clienteNome = null;
-            if (assunto.includes(' - ')) {
+            let clienteNome = parsedPdfData?.clienteNome || null;
+            if (!clienteNome && assunto.includes(' - ')) {
               const parts = assunto.split(' - ');
-              clienteNome = parts[parts.length - 1].trim();
+              const lastPart = parts[parts.length - 1].trim();
+              if (!lastPart.toUpperCase().includes('AMP DO BRASIL') && !lastPart.toUpperCase().includes('SOLUCOES')) {
+                clienteNome = lastPart;
+              }
             }
 
             // Insere na tabela de emails_processados
@@ -157,28 +216,75 @@ export default async function handler(req, res) {
               }])
               .select();
 
-            // Cria automaticamente um card em projetos no Kanban
+            // Cria automaticamente um card em projetos no Kanban com dados reais
             if (clienteNome || codigoRae) {
               const projetoId = `email-${Date.now()}-${uid}`;
               await supabase.from('projetos').insert([{
                 id: projetoId,
                 nome_cliente: clienteNome || `Demanda via E-mail (${assunto.slice(0, 30)}...)`,
-                razao_social: clienteNome || `Demanda via E-mail`,
+                razao_social: parsedPdfData?.empresa || clienteNome || `Demanda via E-mail`,
+                nome_fantasia: clienteNome || null,
                 codigo_rae: codigoRae,
+                telefone: parsedPdfData?.contato || null,
+                celular: parsedPdfData?.contato || null,
+                email_cliente: parsedPdfData?.emailCliente || null,
                 status: 'novo_contrato',
-                solucao_contratada: 'Consultoria Sebrae Capturada por E-mail',
+                solucao_contratada: parsedPdfData?.produto || 'Consultoria Sebrae Capturada por E-mail',
                 programa: 'Consultoria Sebrae',
-                modalidade: 'Remoto',
-                observacoes: `Capturado automaticamente do e-mail de ${remetente} em ${new Date().toLocaleDateString('pt-BR')}. Assunto: ${assunto}`,
+                modalidade: 'À Distância (Online)',
+                horas_contratadas: 1,
+                horas_realizadas: 0,
+                valor_consultoria: parsedPdfData?.valor || 170.00,
+                data_prevista_inicio: parsedPdfData?.dataPrevista || null,
+                data_prevista_fim: parsedPdfData?.dataPrevista || null,
+                observacoes: `Capturado automaticamente do e-mail de ${remetente}. Assunto: ${assunto} | Gestor: ${parsedPdfData?.gestor || 'Sebrae'}`,
+                dados_extra: {
+                  os_number: parsedPdfData?.osNumber || null,
+                  sgf: parsedPdfData?.sgf || null,
+                  gestor: parsedPdfData?.gestor || null,
+                  email_gestor: parsedPdfData?.emailGestor || null,
+                  anexo_pdf: anexoNome
+                },
                 criado_em: dataEmail,
                 atualizado_em: new Date().toISOString()
               }]);
+
+              // Envia notificação imediata via Telegram ao capturar a demanda
+              const telegramToken = extraConfig?.telegramBotToken;
+              const telegramChat = extraConfig?.telegramChatId;
+              if (telegramToken && telegramChat) {
+                try {
+                  const tgText = `🔔 <b>Nova Ordem de Serviço Sebrae Recebida!</b>\n\n` +
+                    `📋 <b>OS:</b> ${parsedPdfData?.osNumber || codigoRae || 'N/A'}\n` +
+                    `👤 <b>Cliente:</b> ${clienteNome || 'Cliente Sebrae'}\n` +
+                    `🏢 <b>Empresa:</b> ${parsedPdfData?.empresa || 'MEI / Empresa'}\n` +
+                    `🔢 <b>RAE:</b> ${codigoRae || 'N/A'}\n` +
+                    `📞 <b>Contato:</b> ${parsedPdfData?.contato || 'N/A'}\n` +
+                    `💼 <b>Solução:</b> ${parsedPdfData?.produto || 'Consultoria Sebrae'}\n` +
+                    `💰 <b>Valor:</b> R$ ${(parsedPdfData?.valor || 170).toFixed(2)}\n\n` +
+                    `<i>Acesse o Kanban para visualizar a demanda!</i>`;
+
+                  await fetch(`https://api.telegram.org/bot${telegramToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      chat_id: telegramChat,
+                      text: tgText,
+                      parse_mode: 'HTML'
+                    })
+                  });
+                  console.log('[POLL] 📲 Notificação Telegram enviada com sucesso no recebimento do e-mail!');
+                } catch (tErr) {
+                  console.error('[POLL] Erro ao enviar notificação Telegram:', tErr.message);
+                }
+              }
             }
 
             novosProcessados.push({
               uid,
               remetente,
               assunto,
+              clienteNome,
               anexoNome,
               status: 'capturado'
             });

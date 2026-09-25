@@ -132,6 +132,24 @@ function App() {
     loadRemoteConfig();
   }, []);
 
+  // Sincronização automática em segundo plano a cada 5 minutos quando conectado
+  useEffect(() => {
+    if (!session) return;
+    const interval = setInterval(async () => {
+      try {
+        await fetch('/api/poll-emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+      } catch (e) {
+        // Silencioso em segundo plano
+      }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [session]);
+
   // Save session changes
   useEffect(() => {
     if (session) {
