@@ -82,6 +82,7 @@ export default async function handler(req, res) {
 
     const lock = await client.getMailboxLock('INBOX');
     const novosProcessados = [];
+    let lastPdfError = null;
 
     try {
       // 1. Busca mensagens não lidas
@@ -205,7 +206,12 @@ export default async function handler(req, res) {
                   console.log(`[POLL] 📄 PDF analisado com sucesso! Cliente: ${parsedPdfData.clienteNome}, RAE: ${parsedPdfData.rae}`);
                 }
               } catch (pdfErr) {
-                console.error('[POLL] Erro ao extrair texto do PDF:', pdfErr.message);
+                console.error('[POLL] Erro ao extrair texto do PDF:', pdfErr);
+                lastPdfError = {
+                  message: pdfErr?.message || String(pdfErr),
+                  stack: pdfErr?.stack || null,
+                  name: pdfErr?.name || null
+                };
               }
             }
           }
@@ -370,6 +376,7 @@ export default async function handler(req, res) {
       ok: true,
       novosContados: novosProcessados.length,
       emailsCapturados: novosProcessados,
+      lastPdfError,
       message: novosProcessados.length > 0 
         ? `Sucesso! ${novosProcessados.length} nova(s) demanda(s) de e-mail capturada(s) e enviada(s) para o sistema.`
         : 'Caixa verificada com sucesso! Nenhuma nova demanda pendente no momento.'
