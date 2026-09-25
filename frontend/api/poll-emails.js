@@ -162,9 +162,9 @@ export default async function handler(req, res) {
 
             if (osPdfAttachment && osPdfAttachment.content) {
               try {
-                const pdfjsLib = await import('pdfjs-dist/build/pdf.js');
                 const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.js');
-                pdfjsLib.PDFWorker._mainThreadWorkerMessageHandler = pdfjsWorker.WorkerMessageHandler;
+                globalThis.pdfjsWorker = pdfjsWorker;
+                const pdfjsLib = await import('pdfjs-dist/build/pdf.js');
 
                 const data = new Uint8Array(osPdfAttachment.content);
                 const loadingTask = pdfjsLib.getDocument({
