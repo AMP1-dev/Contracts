@@ -29,11 +29,11 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       if (configRow?.dados_extra) {
-        const extra = configRow.dados_extra;
+        const extra = configRow.dados_extra.company_config || configRow.dados_extra;
         imapConfig = {
-          host: extra.imapHost || extra.smtpHost || 'mail.amp.ia.br',
+          host: extra.imapHost || extra.smtpHost || 'imap.uni5.net',
           port: extra.imapPort || 993,
-          user: extra.imapUser || extra.smtpUser || extra.adminEmail || '',
+          user: extra.imapUser || extra.smtpUser || '',
           pass: extra.imapPass || extra.smtpPass || '',
           useSSL: extra.imapUseSSL !== false
         };
