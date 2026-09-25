@@ -4,7 +4,7 @@
   "crons": [
     {
       "path": "/api/poll-emails",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 8 * * *"
     }
   ],
   "rewrites": [
