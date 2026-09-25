@@ -128,7 +128,23 @@ export default async function handler(req, res) {
             continue;
           }
 
-          // Baixa o conteúdo completo da mensagem
+          const textoAssunto = `${assunto} ${remetente}`.toLowerCase();
+          const isCandidate = isTargetReprocess || 
+            textoAssunto.includes('ordem de serviço') ||
+            textoAssunto.includes('ordem de servico') ||
+            textoAssunto.includes('sebrae') ||
+            textoAssunto.includes('demanda') ||
+            textoAssunto.includes('contrato') ||
+            textoAssunto.includes('consultoria') ||
+            textoAssunto.includes('sgf') ||
+            textoAssunto.includes('rae') ||
+            textoAssunto.includes('091108');
+
+          if (!isCandidate && isCheckingRecent) {
+            continue;
+          }
+
+          // Baixa o conteúdo completo da mensagem apenas para candidatos
           const fullMessage = await client.download(uid, undefined, { uid: true });
           const parsed = await simpleParser(fullMessage.content);
 
@@ -146,10 +162,20 @@ export default async function handler(req, res) {
 
             if (osPdfAttachment && osPdfAttachment.content) {
               try {
-                const { PDFParse } = await import('pdf-parse');
-                const p = new PDFParse({ data: osPdfAttachment.content });
-                const pdfRes = await p.getText();
-                const pdfText = pdfRes?.text || '';
+                const pdfjsLib = await import('pdfjs-dist/build/pdf.js');
+                const data = new Uint8Array(osPdfAttachment.content);
+                const loadingTask = pdfjsLib.getDocument({
+                  data,
+                  useSystemFonts: true,
+                  disableFontFace: true
+                });
+                const pdfDoc = await loadingTask.promise;
+                let pdfText = '';
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                  const page = await pdfDoc.getPage(i);
+                  const content = await page.getTextContent();
+                  pdfText += content.items.map(item => item.str).join(' ') + '\n';
+                }
 
                 if (pdfText) {
                   const osMatch = pdfText.match(/(?:N[º°]?\s*ORDEM\s*SERVIÇO|Ordem\s*de\s*Serviço\s*n[º°]?)\s*[:\s]*([0-9\/\-]+)/i);
