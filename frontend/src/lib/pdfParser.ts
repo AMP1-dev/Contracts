@@ -64,6 +64,18 @@ export function parseOsText(text: string, fileName: string): Project[] {
   const isPresencial = /presencial/i.test(text);
   const modalidade = isPresencial ? 'Presencial' : 'À Distância (Online)';
 
+  const formatoMatch = text.match(/FORMATO\s*DE\s*EXECUÇÃO\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\(\)\-]+?)(?=\s*CARGA\s*HORÁRIA|\s*LOCAL|$)/i);
+  const representanteMatch = text.match(/REPRESENTANTE\s*LEGAL\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\-]+?)(?=\s*E\s*-\s*MAIL|\s*TEL|\s*CNPJ|$)/i);
+  const fornecedorMatch = text.match(/DADOS\s*DO\s*FORNECEDOR\s*CREDENCIADO[\s\S]*?RAZÃO\s*SOCIAL\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\-]+?)(?=\s*CNPJ|\s*ENDEREÇO|$)/i);
+  const naturezaMatch = text.match(/NATUREZA\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\:]+?)(?=\s*ÁREA|\s*SUBÁREA|$)/i);
+
+  const formatoRaw = formatoMatch ? formatoMatch[1].trim() : modalidade;
+  const plataformaUtilizada = /presencial/i.test(formatoRaw) ? 'Presencial' : 'Plataforma Microsoft Teams';
+  const profissionalResponsavel = representanteMatch ? representanteMatch[1].trim() : 'MARCO ANTONIO PAVANI';
+  const empresaCredenciada = fornecedorMatch ? fornecedorMatch[1].trim().replace(/\s+/g, ' ') : 'AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA';
+  const natureza = (naturezaMatch && /consultoria/i.test(naturezaMatch[1])) ? 'CONSULTORIA' : 'CONSULTORIA';
+  const contratoNo = codigoSgf || osNumber;
+
   // Parse Clients from DADOS DO(S) CLIENTE(S)
   // Format typically: Cliente 01 Código RAE: 39165712 CPF do Cliente: 389.775.118-60 Nome do Cliente: PRICILA DE OLIVEIRA CIACCO CNPJ: 52.018.274/0001-01 Telefone do Cliente: (19) 98266-0000
   const clientRegex = /Cliente\s*(\d+)[\s\S]*?Código\s*RAE\s*[:\s]*([0-9]+)[\s\S]*?CPF\s*(?:do\s*Cliente)?\s*[:\s]*([0-9.\-]+)[\s\S]*?Nome\s*(?:do\s*Cliente)?\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\-]+?)\s*CNPJ\s*[:\s]*([0-9.\/\-]+)[\s\S]*?Telefone\s*(?:do\s*Cliente)?\s*[:\s]*(\([0-9]{2}\)\s*[0-9\-\s]+)/gi;
@@ -132,6 +144,11 @@ export function parseOsText(text: string, fileName: string): Project[] {
       data_prevista_fim: now.split('T')[0],
       modalidade,
       valor_consultoria: 1224,
+      contrato_no: contratoNo,
+      empresa_credenciada: empresaCredenciada,
+      profissional_responsavel: profissionalResponsavel,
+      natureza: natureza,
+      plataforma_utilizada: plataformaUtilizada,
       observacoes: `Gestor: ${gestor || 'N/A'} (${emailGestor || 'N/A'}) | SGF: ${codigoSgf || 'N/A'}`,
       dados_extra: { os_number: osNumber, sgf: codigoSgf, gestor, email_gestor: emailGestor },
       criado_em: now,
@@ -158,6 +175,11 @@ export function parseOsText(text: string, fileName: string): Project[] {
     data_prevista_fim: now.split('T')[0],
     modalidade,
     valor_consultoria: 1224,
+    contrato_no: contratoNo,
+    empresa_credenciada: empresaCredenciada,
+    profissional_responsavel: profissionalResponsavel,
+    natureza: natureza,
+    plataforma_utilizada: plataformaUtilizada,
     observacoes: `OS ${osNumber || ''} | Cliente ${idx + 1} de ${parsedClients.length} | Gestor: ${gestor || 'LIVIA ROMERO SILVA'} (${emailGestor || 'liviars@sebraesp.com.br'})`,
     dados_extra: {
       os_number: osNumber,

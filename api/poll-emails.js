@@ -199,6 +199,18 @@ export default async function handler(req, res) {
                   const prefMatch = pdfText.match(/Cliente deseja agendar[^.]+?\./i);
                   const prefObs = prefMatch ? prefMatch[0].replace(/\s+/g, ' ').trim() : '';
 
+                  const formatoMatch = pdfText.match(/FORMATO\s*DE\s*EXECUÇÃO\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\(\)\-]+?)(?=\s*CARGA\s*HORÁRIA|\s*LOCAL|$)/i);
+                  const representanteMatch = pdfText.match(/REPRESENTANTE\s*LEGAL\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\-]+?)(?=\s*E\s*-\s*MAIL|\s*TEL|\s*CNPJ|$)/i);
+                  const fornecedorMatch = pdfText.match(/DADOS\s*DO\s*FORNECEDOR\s*CREDENCIADO[\s\S]*?RAZÃO\s*SOCIAL\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\-]+?)(?=\s*CNPJ|\s*ENDEREÇO|$)/i);
+                  const naturezaMatch = pdfText.match(/NATUREZA\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s\:]+?)(?=\s*ÁREA|\s*SUBÁREA|$)/i);
+
+                  const formatoRaw = formatoMatch ? formatoMatch[1].trim() : 'À Distância (Online)';
+                  const isPresencial = /presencial/i.test(formatoRaw);
+                  const plataformaUtilizada = isPresencial ? 'Presencial' : 'Plataforma Microsoft Teams';
+                  const profissionalResponsavel = representanteMatch ? representanteMatch[1].trim() : 'MARCO ANTONIO PAVANI';
+                  const empresaCredenciada = fornecedorMatch ? fornecedorMatch[1].trim().replace(/\s+/g, ' ') : 'AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA';
+                  const natureza = (naturezaMatch && /consultoria/i.test(naturezaMatch[1])) ? 'CONSULTORIA' : 'CONSULTORIA';
+
                   let rawContato = contatoMatch ? contatoMatch[1].trim() : '';
                   let formattedContato = rawContato;
                   const digits = rawContato.replace(/\D/g, '');
@@ -219,6 +231,7 @@ export default async function handler(req, res) {
                   parsedPdfData = {
                     osNumber: osMatch ? osMatch[1].trim() : null,
                     sgf: sgfMatch ? sgfMatch[1].trim() : null,
+                    contratoNo: sgfMatch ? sgfMatch[1].trim() : (osMatch ? osMatch[1].trim() : null),
                     gestor: gestorMatch ? gestorMatch[1].trim() : null,
                     emailGestor: emailGestorMatch ? emailGestorMatch[1].trim() : null,
                     produto: produtoMatch ? produtoMatch[1].trim().replace(/\s+/g, ' ') : null,
@@ -230,7 +243,12 @@ export default async function handler(req, res) {
                     emailCliente: emailCliente || null,
                     valor: valorMatch ? parseFloat(valorMatch[1].replace('.', '').replace(',', '.')) : 170.0,
                     dataPrevista: dataPrevistaMatch ? dataPrevistaMatch[1].trim() : null,
-                    prefObs: prefObs
+                    prefObs: prefObs,
+                    profissionalResponsavel,
+                    plataformaUtilizada,
+                    natureza,
+                    empresaCredenciada,
+                    modalidade: isPresencial ? 'Presencial' : 'À Distância (Online)'
                   };
                   console.log(`[POLL] 📄 PDF analisado com sucesso! Cliente: ${parsedPdfData.clienteNome}, RAE: ${parsedPdfData.rae}`);
                 }
@@ -327,12 +345,17 @@ export default async function handler(req, res) {
                 status: 'novo_contrato',
                 solucao_contratada: parsedPdfData?.produto || 'Consultoria Sebrae Capturada por E-mail',
                 programa: 'Consultoria Sebrae',
-                modalidade: 'À Distância (Online)',
+                modalidade: parsedPdfData?.modalidade || 'À Distância (Online)',
                 horas_contratadas: 1,
                 horas_realizadas: 0,
                 valor_consultoria: parsedPdfData?.valor || 170.00,
                 data_prevista_inicio: parsedPdfData?.dataPrevista || null,
                 data_prevista_fim: parsedPdfData?.dataPrevista || null,
+                contrato_no: parsedPdfData?.contratoNo || parsedPdfData?.sgf || null,
+                empresa_credenciada: parsedPdfData?.empresaCredenciada || 'AMP DO BRASIL SOLUCOES ADMINISTRATIVAS E TECNOLOGICAS LTDA',
+                profissional_responsavel: parsedPdfData?.profissionalResponsavel || 'MARCO ANTONIO PAVANI',
+                natureza: parsedPdfData?.natureza || 'CONSULTORIA',
+                plataforma_utilizada: parsedPdfData?.plataformaUtilizada || 'Plataforma Microsoft Teams',
                 observacoes: parsedPdfData?.prefObs ? `OS nº ${parsedPdfData.osNumber || ''} | ${parsedPdfData.prefObs} | Gestor: ${parsedPdfData.gestor || 'Sebrae'}` : `Capturado automaticamente do e-mail de ${remetente}. Assunto: ${assunto}`,
                 objetivo_atendimento: parsedPdfData?.prefObs ? `Consultoria Sebrae - ${parsedPdfData.prefObs}` : null,
                 dados_extra: {
