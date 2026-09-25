@@ -88,14 +88,14 @@ export default async function handler(req, res) {
       let uids = await client.search({ seen: false }, { uid: true });
       let isCheckingRecent = false;
 
-      // Se não houver não lidas, busca as 5 mais recentes da caixa (para não perder nada se o usuário já abriu o e-mail no webmail)
-      if (!uids || uids.length === 0) {
-        console.log('[POLL] Nenhuma mensagem não lida encontrada. Verificando as 5 mensagens mais recentes da caixa...');
+      // Se não houver não lidas ou for busca forçada/reprocessamento, busca as 30 mais recentes da caixa
+      if (!uids || uids.length === 0 || req.body?.force || req.body?.reprocessMessageId) {
+        console.log('[POLL] Verificando as 30 mensagens mais recentes da caixa...');
         const allUids = await client.search({ all: true }, { uid: true });
-        uids = (allUids || []).slice(-5);
+        uids = (allUids || []).slice(-30);
         isCheckingRecent = true;
       } else {
-        uids = uids.slice(-10); // Limita às 10 mais recentes
+        uids = uids.slice(-20); // Limita às 20 mais recentes
       }
 
       console.log(`[POLL] ${uids.length} mensagem(ns) selecionada(s) para análise.`);
@@ -110,14 +110,19 @@ export default async function handler(req, res) {
           const assunto = msgMeta.envelope.subject || '(sem assunto)';
           const dataEmail = msgMeta.envelope.date ? new Date(msgMeta.envelope.date).toISOString() : new Date().toISOString();
 
+          const isTargetReprocess = req.body?.reprocessMessageId && (
+            req.body.reprocessMessageId === messageId || 
+            req.body.reprocessMessageId === `uid-${uid}`
+          );
+
           // Idempotência: verifica se este message_id já foi salvo
           const { data: existente } = await supabase
             .from('emails_processados')
-            .select('id')
+            .select('id, status')
             .eq('message_id', messageId)
             .maybeSingle();
 
-          if (existente) {
+          if (existente && !req.body?.force && !isTargetReprocess) {
             console.log(`[POLL] Mensagem já registrada anteriormente: "${assunto}" (${messageId}). Pulando.`);
             continue;
           }
@@ -233,24 +238,42 @@ export default async function handler(req, res) {
               }
             }
 
-            // Insere na tabela de emails_processados
-            const { data: emailReg, error: errEmail } = await supabase
-              .from('emails_processados')
-              .insert([{
-                message_id: messageId,
-                remetente,
-                assunto,
-                anexo_nome: anexoNome,
-                status: 'recebido',
-                criado_em: dataEmail
-              }])
-              .select();
+            // Atualiza ou insere na tabela de emails_processados
+            if (existente?.id) {
+              await supabase
+                .from('emails_processados')
+                .update({
+                  status: 'processado',
+                  anexo_nome: anexoNome,
+                  erro_detalhe: null
+                })
+                .eq('id', existente.id);
+            } else {
+              await supabase
+                .from('emails_processados')
+                .insert([{
+                  message_id: messageId,
+                  remetente,
+                  assunto,
+                  anexo_nome: anexoNome,
+                  status: 'processado',
+                  criado_em: dataEmail
+                }]);
+            }
 
-            // Cria automaticamente um card em projetos no Kanban com dados reais
+            // Cria ou atualiza o card em projetos no Kanban com dados reais
             if (clienteNome || codigoRae) {
-              const projetoId = `email-${Date.now()}-${uid}`;
-              await supabase.from('projetos').insert([{
-                id: projetoId,
+              let existingProj = null;
+              if (codigoRae) {
+                const { data: p } = await supabase
+                  .from('projetos')
+                  .select('id')
+                  .eq('codigo_rae', codigoRae)
+                  .maybeSingle();
+                existingProj = p;
+              }
+
+              const projetoPayload = {
                 nome_cliente: clienteNome || `Demanda via E-mail (${assunto.slice(0, 30)}...)`,
                 razao_social: parsedPdfData?.empresa || clienteNome || `Demanda via E-mail`,
                 nome_fantasia: clienteNome || null,
@@ -277,9 +300,21 @@ export default async function handler(req, res) {
                   email_gestor: parsedPdfData?.emailGestor || null,
                   anexo_pdf: anexoNome
                 },
-                criado_em: dataEmail,
                 atualizado_em: new Date().toISOString()
-              }]);
+              };
+
+              if (existingProj?.id) {
+                await supabase.from('projetos').update(projetoPayload).eq('id', existingProj.id);
+                console.log(`[POLL] Card atualizado no Kanban: ID ${existingProj.id} (RAE: ${codigoRae})`);
+              } else {
+                const projetoId = `email-${Date.now()}-${uid}`;
+                await supabase.from('projetos').insert([{
+                  id: projetoId,
+                  ...projetoPayload,
+                  criado_em: dataEmail
+                }]);
+                console.log(`[POLL] Novo card criado no Kanban: ID ${projetoId} (RAE: ${codigoRae})`);
+              }
 
               // Envia notificação imediata via Telegram ao capturar a demanda
               const telegramToken = extraConfig?.telegramBotToken;

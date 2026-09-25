@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Mail, CheckCircle2, XCircle, Clock, FileText } from 'lucide-react';
+import { Mail, CheckCircle2, XCircle, Clock, FileText, Trash2, RefreshCw, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -70,91 +70,63 @@ export function Inbox() {
   const handleProcessPdf = async (emailProcessadoId: string) => {
     setProcessingId(emailProcessadoId);
     try {
-      // 1. Tenta chamar a Edge Function de OCR/IA na nuvem
-      const { error } = await supabase.functions.invoke('process-pdf', {
-        body: { emailProcessadoId }
+      const targetEmail = emails.find(e => e.id === emailProcessadoId);
+      if (!targetEmail) return;
+
+      const res = await fetch('/api/poll-emails', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          reprocessMessageId: targetEmail.message_id,
+          force: true 
+        })
       });
 
-      if (error) {
-        throw new Error(error.message);
+      if (!res.ok) {
+        throw new Error(`Erro na API (${res.status}): ${res.statusText}`);
       }
-      
+
+      const data = await res.json();
+      if (!data.ok) {
+        throw new Error(data.error || 'Falha ao processar e-mail');
+      }
+
       await fetchEmails();
-      alert('✅ PDF processado com sucesso! Demanda enviada para o Kanban.');
+      alert('✅ Demanda processada com sucesso via IA! Os dados do cliente, RAE e contrato foram salvos no Kanban.');
     } catch (err: any) {
-      console.warn('Edge function error, iniciando extração inteligente via fallback:', err);
-      
-      // Fallback inteligente: Extrai dados diretamente do e-mail/assunto
-      const targetEmail = emails.find(e => e.id === emailProcessadoId);
-      if (targetEmail) {
-        const assunto = targetEmail.assunto || '';
-        
-        // Tenta extrair RAE e Nome do Cliente do assunto (ex: "Ordem de Serviço nº 060628/2026 - AMP DO BRASIL...")
-        const raeMatch = assunto.match(/(?:nº|n°|rae|os)[\s:]*([0-9\/\-]+)/i);
-        const rae = raeMatch ? raeMatch[1] : 'RAE-2026-SEBRAE';
-
-        let clienteNome = 'Cliente Sebrae';
-        if (assunto.includes(' - ')) {
-          const parts = assunto.split(' - ');
-          clienteNome = parts[parts.length - 1].trim();
-        }
-
-        const novaDemanda = {
-          codigo_rae: rae,
-          nome_cliente: clienteNome,
-          razao_social: clienteNome,
-          solucao_contratada: 'Consultoria Credenciada Sebrae',
-          programa: 'Sebrae',
-          status: 'novo_contrato',
-          modalidade: 'Presencial',
-          edital: '004/2026',
-          processo_no: '1777/2025'
-        };
-
-        // Salva projeto no Supabase / Estado Local
-        await supabase.from('projetos').insert([novaDemanda]);
-
-        // Atualiza e-mail para processado
-        await supabase
-          .from('emails_processados')
-          .update({ status: 'processado', erro_detalhe: null })
-          .eq('id', emailProcessadoId);
-
-        // Dispara notificação Telegram se configurada
-        try {
-          const savedConfig = localStorage.getItem('amp_company_config');
-          if (savedConfig) {
-            const parsedConfig = JSON.parse(savedConfig);
-            if (parsedConfig.telegramBotToken && parsedConfig.telegramChatId) {
-              const { sendTelegramNotification } = await import('../lib/telegram');
-              await sendTelegramNotification(
-                `<b>🔔 Nova Demanda Sebrae Criada!</b>\n\n<b>Cliente:</b> ${clienteNome}\n<b>RAE:</b> ${rae}\n<b>Programa:</b> Sebrae`,
-                parsedConfig.telegramBotToken,
-                parsedConfig.telegramChatId
-              );
-            }
-          }
-        } catch (tErr) {
-          console.error('Erro ao enviar Telegram:', tErr);
-        }
-
-        await fetchEmails();
-        alert(`✅ Demanda criada com sucesso!\n\nCliente: ${clienteNome}\nRAE: ${rae}\n\nAcesse o Kanban para ver o cartão.`);
-      } else {
-        alert('Erro ao processar PDF: ' + err.message);
-      }
+      console.error('Erro ao processar PDF:', err);
+      alert('Erro ao processar PDF: ' + err.message);
     } finally {
       setProcessingId(null);
+    }
+  };
+
+  const handleDeleteEmail = async (emailId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Deseja remover este e-mail da Caixa de Entrada do app? Se você clicar em "Sincronizar Agora", ele poderá ser relido da sua caixa de e-mails.')) {
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('emails_processados')
+        .delete()
+        .eq('id', emailId);
+
+      if (error) throw error;
+      setEmails(prev => prev.filter(item => item.id !== emailId));
+    } catch (err: any) {
+      alert('Erro ao remover e-mail da caixa: ' + err.message);
     }
   };
 
   const handleSyncEmails = async () => {
     try {
       setLoading(true);
-      // Dispara o robô de sincronização via API do próprio domínio
+      // Dispara o robô de sincronização via API do próprio domínio com verificação recente
       const res = await fetch('/api/poll-emails', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true })
       });
 
       if (!res.ok) {
@@ -237,9 +209,20 @@ export function Inbox() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline justify-between gap-2 mb-1">
-                    <h3 className="text-sm font-semibold text-slate-800 truncate">
-                      {email.remetente || 'Remetente Desconhecido'}
-                    </h3>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h3 className="text-sm font-semibold text-slate-800 truncate">
+                        {email.remetente || 'Remetente Desconhecido'}
+                      </h3>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                        email.status === 'processado' 
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                          : email.status === 'erro'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
+                      }`}>
+                        {email.status === 'processado' ? 'Processado no Kanban' : email.status === 'erro' ? 'Erro' : 'Pendente'}
+                      </span>
+                    </div>
                     <span className="text-xs text-slate-400 whitespace-nowrap">
                       {format(new Date(email.criado_em), "dd MMM, HH:mm", { locale: ptBR })}
                     </span>
@@ -255,24 +238,45 @@ export function Inbox() {
                     </p>
                   )}
 
-                  {email.anexo_nome && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 bg-white border border-slate-200 shadow-sm rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-600 cursor-pointer hover:border-primary/50 transition-colors">
-                        <FileText size={14} className="text-primary" />
-                        <span className="truncate max-w-[200px]">{email.anexo_nome}</span>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    {email.anexo_nome ? (
+                      <div className="flex items-center gap-1.5 bg-white border border-slate-200 shadow-sm rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-600">
+                        <FileText size={14} className="text-primary shrink-0" />
+                        <span className="truncate max-w-[280px]">{email.anexo_nome}</span>
                       </div>
-                      
-                      {email.status === 'recebido' && (
-                        <button 
-                          onClick={() => handleProcessPdf(email.id)}
-                          disabled={processingId === email.id}
-                          className="text-xs font-semibold text-white bg-primary hover:bg-primary-hover px-3 py-1.5 rounded-md shadow-sm transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {processingId === email.id ? 'Processando IA...' : 'Processar PDF'}
-                        </button>
-                      )}
+                    ) : <div />}
+
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => handleProcessPdf(email.id)}
+                        disabled={processingId === email.id}
+                        title={email.status === 'processado' ? 'Reprocessar e reenviar ao Kanban' : 'Processar PDF e enviar ao Kanban'}
+                        className="text-xs font-semibold text-white bg-primary hover:bg-primary-hover px-3 py-1.5 rounded-md shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {processingId === email.id ? (
+                          <>
+                            <RefreshCw size={13} className="animate-spin" /> Processando IA...
+                          </>
+                        ) : email.status === 'processado' ? (
+                          <>
+                            <RefreshCw size={13} /> Reprocessar no Kanban
+                          </>
+                        ) : (
+                          <>
+                            <Play size={13} /> Processar PDF
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        onClick={(e) => handleDeleteEmail(email.id, e)}
+                        title="Remover este e-mail da caixa do app (permite reler do servidor)"
+                        className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-md transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             ))
