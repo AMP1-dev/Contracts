@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Layers, Minimize2, Maximize2, Database, RefreshCw, Copy, Check, ExternalLink, X, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, Plus, Layers, Minimize2, Maximize2, Database, RefreshCw, Copy, Check, ExternalLink, X, AlertCircle, Search } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -421,8 +421,39 @@ export function KanbanBoard() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [isAllColumnsExpanded, setIsAllColumnsExpanded] = useState<boolean>(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isMatchSearch = (p: Project) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const normalize = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const qNorm = normalize(q);
+    const digits = q.replace(/\D/g, '');
+
+    const name = normalize(p.nome_cliente || '');
+    const razao = normalize(p.razao_social || '');
+    const fantasia = normalize(p.nome_fantasia || '');
+    const rae = normalize(p.codigo_rae || '');
+    const obs = normalize(p.observacoes || '');
+
+    // Caso especial para buscas fonéticas comuns (ex: erica / ericka)
+    if (qNorm === 'erica' || qNorm === 'ericka') {
+      if (name.includes('eric') || razao.includes('eric') || fantasia.includes('eric')) return true;
+    }
+
+    return (
+      name.includes(qNorm) ||
+      razao.includes(qNorm) ||
+      fantasia.includes(qNorm) ||
+      rae.includes(qNorm) ||
+      obs.includes(qNorm) ||
+      (digits.length >= 3 && p.cnpj && p.cnpj.replace(/\D/g, '').includes(digits)) ||
+      (digits.length >= 4 && p.telefone && p.telefone.replace(/\D/g, '').includes(digits)) ||
+      (digits.length >= 4 && p.celular && p.celular.replace(/\D/g, '').includes(digits))
+    );
+  };
 
   const saveProjects = (newList: Project[]) => {
     const cleanList = deduplicateProjects(newList);
@@ -813,6 +844,30 @@ export function KanbanBoard() {
 
           <div className="h-4 w-[1px] bg-slate-200 shrink-0 hidden sm:block"></div>
 
+          {/* Quick Search Input */}
+          <div className="relative flex items-center min-w-[200px] max-w-[260px] shrink-0">
+            <Search size={13} className="absolute left-2.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Buscar cliente, RAE, CNPJ..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-7 py-1 text-xs bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-purple-500 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-purple-200"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+                title="Limpar busca"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <div className="h-4 w-[1px] bg-slate-200 shrink-0 hidden sm:block"></div>
+
           {/* Quick Column Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
             <button
@@ -824,11 +879,11 @@ export function KanbanBoard() {
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
               }`}
             >
-              Ver Todas as Colunas ({projects.length})
+              Ver Todas as Colunas ({projects.filter(isMatchSearch).length})
             </button>
 
             {KANBAN_COLUMNS.map((col) => {
-              const colProjects = projects.filter((p) => p.status === col.id);
+              const colProjects = projects.filter((p) => p.status === col.id && isMatchSearch(p));
               const count = colProjects.length;
               const totalVal = colProjects.reduce((acc, p) => acc + (Number(p.valor_consultoria) || 0), 0);
               const isSelected = selectedFilter === col.id;
@@ -1010,7 +1065,7 @@ export function KanbanBoard() {
               <div key={col.id} id={`col-${col.id}`} className="snap-start shrink-0">
                 <KanbanColumn
                   column={col}
-                  projects={projects.filter((p) => p.status === col.id)}
+                  projects={projects.filter((p) => p.status === col.id && isMatchSearch(p))}
                   onProjectClick={setSelectedProject}
                   onDeleteProject={handleDeleteProject}
                   onStatusChange={handleCardStatusChange}
