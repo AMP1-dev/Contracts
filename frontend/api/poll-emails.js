@@ -128,19 +128,66 @@ export default async function handler(req, res) {
             continue;
           }
 
-          const textoAssunto = `${assunto} ${remetente}`.toLowerCase();
-          const isCandidate = isTargetReprocess || 
+          const textoAssunto = (assunto || '').toLowerCase();
+          const textoRemetente = (remetente || '').toLowerCase();
+
+          // 1. Blacklist rigorosa de informativos, comunicados, avisos e e-mails administrativos
+          const isBlacklisted = (
+            textoAssunto.includes('sgf informa') ||
+            textoAssunto.includes('academia soma') ||
+            textoAssunto.includes('tira-dúvidas') ||
+            textoAssunto.includes('tira duvidas') ||
+            textoAssunto.includes('treinamento') ||
+            textoAssunto.includes('parecer da atualização') ||
+            textoAssunto.includes('atualização de dados') ||
+            textoAssunto.includes('indisponibilidade') ||
+            textoAssunto.includes('reconsideração de suspensão') ||
+            textoAssunto.includes('reconsideracao de suspensao') ||
+            textoAssunto.includes('término de vigência') ||
+            textoAssunto.includes('termino de vigencia') ||
+            textoAssunto.includes('canais de atendimento') ||
+            textoAssunto.includes('pesquisa de satisfação') ||
+            textoAssunto.includes('webinar') ||
+            textoAssunto.includes('potencialize') ||
+            textoAssunto.includes('cancelamento de agenda') ||
+            textoAssunto.includes('automatic reply') ||
+            textoAssunto.includes('aviso ') ||
+            textoRemetente.includes('noreply@')
+          );
+
+          if (isBlacklisted && !isTargetReprocess) {
+            console.log(`[POLL] ⏭️ Ignorando informativo/aviso: "${assunto}" (${remetente})`);
+            continue;
+          }
+
+          // 2. Critérios de Qualificação Rigorosos para Demanda / OS / Proposta
+          const isOS = (
             textoAssunto.includes('ordem de serviço') ||
             textoAssunto.includes('ordem de servico') ||
-            textoAssunto.includes('sebrae') ||
-            textoAssunto.includes('demanda') ||
-            textoAssunto.includes('contrato') ||
-            textoAssunto.includes('consultoria') ||
-            textoAssunto.includes('sgf') ||
-            textoAssunto.includes('rae') ||
-            textoAssunto.includes('091108');
+            /\bos\s*(?:n[º°]?\s*)?[0-9\/\-]+/i.test(textoAssunto)
+          );
 
-          if (!isCandidate && isCheckingRecent) {
+          const isProposta = (
+            textoAssunto.includes('proposta para prestação') ||
+            textoAssunto.includes('proposta de prestação') ||
+            textoAssunto.includes('proposta de serviços') ||
+            textoAssunto.includes('proposta de consultoria') ||
+            textoAssunto.includes('proposta para analise') ||
+            textoAssunto.includes('proposta para análise')
+          );
+
+          const isDemandaExplicit = (
+            textoAssunto.includes('demanda de consultoria') ||
+            textoAssunto.includes('atribuição de demanda') ||
+            textoAssunto.includes('atribuicao de demanda') ||
+            /\brae\s*[:\s]*[0-9]+/i.test(textoAssunto) ||
+            /\bcódigo\s*sgf\s*[:\s]*[a-z0-9]+/i.test(textoAssunto)
+          );
+
+          const isCandidate = isTargetReprocess || isOS || isProposta || isDemandaExplicit;
+
+          if (!isCandidate) {
+            console.log(`[POLL] ⏭️ Pulando e-mail que não é OS ou Proposta: "${assunto}"`);
             continue;
           }
 
@@ -263,32 +310,18 @@ export default async function handler(req, res) {
             }
           }
 
-          // Analisa se o assunto ou corpo contém indicadores de Sebrae / OS / Contrato / RAE / CO
-          const textoCompleto = `${assunto} ${parsed.text || ''}`.toLowerCase();
-          const isDemanda = (
-            textoCompleto.includes('sebrae') ||
-            textoCompleto.includes('ordem de serviço') ||
-            textoCompleto.includes('demanda') ||
-            textoCompleto.includes('contrato') ||
-            textoCompleto.includes('consultoria') ||
-            textoCompleto.includes('foco') ||
-            textoCompleto.includes('rae') ||
-            textoCompleto.includes('co-') ||
-            !isCheckingRecent // Se foi e-mail não lido direto, registra
-          );
+          // Confirmação de Demanda Real (OS com anexo ou Proposta formal)
+          const isRealDemanda = isTargetReprocess || isOS || isProposta || parsedPdfData?.clienteNome;
 
-          if (isDemanda) {
+          if (isRealDemanda) {
             // Extrai dados para criação do projeto
             const raeMatch = assunto.match(/(?:nº|n°|rae|os|co)[\s:]*([0-9\/\-]+)/i);
             const codigoRae = parsedPdfData?.rae || (raeMatch ? raeMatch[1] : null);
 
             let clienteNome = parsedPdfData?.clienteNome || null;
-            if (!clienteNome && assunto.includes(' - ')) {
-              const parts = assunto.split(' - ');
-              const lastPart = parts[parts.length - 1].trim();
-              if (!lastPart.toUpperCase().includes('AMP DO BRASIL') && !lastPart.toUpperCase().includes('SOLUCOES')) {
-                clienteNome = lastPart;
-              }
+            if (!clienteNome && isProposta) {
+              const propostaMatch = assunto.match(/Código\s*-\s*([A-Z0-9]+)/i);
+              clienteNome = propostaMatch ? `Proposta SGF ${propostaMatch[1]}` : null;
             }
 
             // Atualiza ou insere na tabela de emails_processados
@@ -314,8 +347,8 @@ export default async function handler(req, res) {
                 }]);
             }
 
-            // Cria ou atualiza o card em projetos no Kanban com dados reais
-            if (clienteNome || codigoRae) {
+            // Cria ou atualiza o card em projetos no Kanban SOMENTE se houver cliente real do PDF ou proposta válida
+            if (parsedPdfData?.clienteNome || (isProposta && (codigoRae || parsedPdfData?.sgf))) {
               let existingProj = null;
               if (codigoRae || parsedPdfData?.osNumber) {
                 const searchFilters = [];
