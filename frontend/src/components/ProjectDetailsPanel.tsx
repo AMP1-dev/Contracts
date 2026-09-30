@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar, Clipboard } from 'lucide-react';
+import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar, Clipboard, AlertTriangle, RotateCcw } from 'lucide-react';
 import type { Project, CompanyConfig } from '../types/database';
 import { supabase } from '../lib/supabase';
 import { cn, maskPhone } from '../lib/utils';
 import { REPORT_ARROW_B64, REPORT_BANNER_B64, REPORT_LOGO_B64 } from '../assets/reportAssets';
 import { createAutentiqueDocument } from '../lib/autentique';
 import { SomaAiAssistant } from './SomaAiAssistant';
+import { WHATSAPP_TEMPLATES, buildWhatsAppMessage, openWhatsApp } from '../lib/whatsapp';
 
 interface ProjectDetailsPanelProps {
   project: Project | null;
@@ -612,42 +613,73 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50 hide-scrollbar">
           
           {/* Quick Contact Bar */}
-          <section className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-5 rounded-2xl text-white shadow-md">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-purple-200 mb-1.5 flex items-center gap-2">
-              <MessageSquare size={16} />
-              Comunicação & Agendamento Rápido
-            </h3>
-            <p className="text-xs text-purple-300 mb-3.5">
-              Envie mensagem de apresentação e pedido de agendamento em 1 clique:
-            </p>
-            
-            <div className="flex flex-wrap gap-2.5">
-              <a
-                href={getWhatsAppLink()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition-all"
-              >
-                <span>💬 WhatsApp (Apresentação + Agenda)</span>
-              </a>
+          <section className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 p-5 rounded-2xl text-white shadow-md border border-purple-800/40">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-purple-200 flex items-center gap-2">
+                  <MessageSquare size={16} className="text-emerald-400" />
+                  Comunicação & Agendamento Rápido
+                </h3>
+                <p className="text-[11px] text-purple-300/90 mt-0.5">
+                  Dispare mensagens no WhatsApp em 1 clique (o card só muda de fase quando você decidir manualmente):
+                </p>
+              </div>
 
-              <a
-                href="https://calendar.app.google/skRSHv2QBUjY9ae16"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow transition-all"
-              >
-                <Calendar size={14} />
-                <span>Abrir Google Agenda</span>
-              </a>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href="https://calendar.app.google/skRSHv2QBUjY9ae16"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 bg-blue-600/80 hover:bg-blue-600 text-white font-semibold text-[11px] px-3 py-1.5 rounded-lg border border-blue-400/30 transition-all cursor-pointer"
+                  title="Abrir Google Agenda"
+                >
+                  <Calendar size={13} />
+                  <span>Google Agenda</span>
+                </a>
+                <a
+                  href={getEmailLink()}
+                  className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/20 text-white font-semibold text-[11px] px-3 py-1.5 rounded-lg border border-white/20 transition-all cursor-pointer"
+                  title="Enviar e-mail para o cliente"
+                >
+                  <Mail size={13} />
+                  <span>E-mail</span>
+                </a>
+              </div>
+            </div>
 
-              <a
-                href={getEmailLink()}
-                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-4 py-2.5 rounded-xl border border-white/20 transition-all"
-              >
-                <Mail size={14} />
-                <span>E-mail</span>
-              </a>
+            {/* Grid de Templates WhatsApp */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">
+              {WHATSAPP_TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => {
+                    const phone = formData.celular || formData.telefone || project?.celular || project?.telefone;
+                    const msg = buildWhatsAppMessage(tpl.id, formData);
+                    openWhatsApp(phone, msg);
+                  }}
+                  className="flex items-start gap-2.5 p-2.5 rounded-xl bg-white/5 hover:bg-emerald-600/90 text-left border border-white/10 hover:border-emerald-400/50 transition-all group cursor-pointer"
+                >
+                  <div className="p-1.5 rounded-lg bg-white/10 group-hover:bg-white/20 text-white shrink-0 mt-0.5">
+                    {tpl.id === 'convite' && <Send size={14} className="text-emerald-300 group-hover:text-white" />}
+                    {tpl.id === 'cobranca_1' && <Clock size={14} className="text-amber-300 group-hover:text-white" />}
+                    {tpl.id === 'cobranca_urgente' && <AlertTriangle size={14} className="text-rose-300 group-hover:text-white" />}
+                    {tpl.id === 'lembrete' && <Calendar size={14} className="text-sky-300 group-hover:text-white" />}
+                    {tpl.id === 'retorno' && <RotateCcw size={14} className="text-purple-300 group-hover:text-white" />}
+                    {tpl.id === 'livre' && <MessageSquare size={14} className="text-slate-300 group-hover:text-white" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <span className="text-xs font-bold text-white group-hover:text-white truncate">
+                        {tpl.title}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-purple-200/80 group-hover:text-white/90 line-clamp-2 leading-tight">
+                      {tpl.subtitle}
+                    </p>
+                  </div>
+                </button>
+              ))}
             </div>
           </section>
 

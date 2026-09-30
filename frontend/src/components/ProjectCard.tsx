@@ -1,8 +1,10 @@
+import { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Building2, FileText, GripVertical, Phone, Clock, MessageSquare, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Building2, FileText, GripVertical, Phone, Clock, MessageSquare, Trash2, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { type Project, type ProjectStatus, KANBAN_COLUMNS } from '../types/database';
 import { cn, maskPhone } from '../lib/utils';
+import { WHATSAPP_TEMPLATES, buildWhatsAppMessage, openWhatsApp, type WhatsAppTemplateOption } from '../lib/whatsapp';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -15,6 +17,30 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusChange }: ProjectCardProps) {
+  const [isWhatsappOpen, setIsWhatsappOpen] = useState(false);
+  const whatsappMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (whatsappMenuRef.current && !whatsappMenuRef.current.contains(event.target as Node)) {
+        setIsWhatsappOpen(false);
+      }
+    };
+    if (isWhatsappOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isWhatsappOpen]);
+
+  const handleSendTemplate = (templateId: WhatsAppTemplateOption['id'], e: React.MouseEvent) => {
+    e.stopPropagation();
+    const msg = buildWhatsAppMessage(templateId, project);
+    openWhatsApp(project.celular || project.telefone, msg);
+    setIsWhatsappOpen(false);
+  };
+
   const {
     setNodeRef,
     attributes,
@@ -180,24 +206,62 @@ export function ProjectCard({ project, isOverlay, onClick, onDelete, onStatusCha
 
         {/* Telefone & Botão do WhatsApp */}
         {rawPhone && (
-          <div className="flex items-center justify-between gap-1.5 text-xs text-slate-600 font-medium bg-slate-50/80 p-1.5 rounded-lg border border-slate-200/60 mt-0.5">
+          <div className="relative flex items-center justify-between gap-1.5 text-xs text-slate-600 font-medium bg-slate-50/80 p-1.5 rounded-lg border border-slate-200/60 mt-0.5">
             <div className="flex items-center gap-1.5 min-w-0">
               <Phone size={13} className="text-emerald-600 shrink-0" />
               <span className="truncate font-semibold text-slate-700">{maskPhone(rawPhone)}</span>
             </div>
-            {formattedWhatsapp && (
-              <a
-                href={`https://wa.me/${formattedWhatsapp}?text=${encodeURIComponent(getWhatsAppMessage())}`}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
+
+            {/* Menu Dropdown de Mensagens Rápidas WhatsApp */}
+            <div className="relative shrink-0" ref={whatsappMenuRef}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsWhatsappOpen(!isWhatsappOpen);
+                }}
                 className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-2 py-1 rounded-md shadow-2xs transition-colors shrink-0 cursor-pointer"
-                title={`Enviar convite de agendamento para ${project.nome_cliente || 'cliente'} no WhatsApp`}
+                title="Disparar mensagem no WhatsApp (Convite, Cobrança, Retorno)"
               >
                 <MessageSquare size={11} className="fill-current text-white shrink-0" />
                 <span>WhatsApp</span>
-              </a>
-            )}
+                <ChevronDown size={10} className={cn("transition-transform", isWhatsappOpen && "rotate-180")} />
+              </button>
+
+              {/* Popover flutuante */}
+              {isWhatsappOpen && (
+                <div 
+                  className="absolute right-0 bottom-full mb-1.5 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-1.5 z-50 flex flex-col gap-1 text-slate-800 animate-in fade-in zoom-in-95 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-2 py-1 border-b border-slate-100 flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Disparo Rápido</span>
+                    <span className="text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-bold">1 Clique</span>
+                  </div>
+
+                  {WHATSAPP_TEMPLATES.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={(e) => handleSendTemplate(tpl.id, e)}
+                      className="flex flex-col text-left px-2 py-1.5 rounded-lg hover:bg-emerald-50/70 transition-colors group cursor-pointer border border-transparent hover:border-emerald-200"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">
+                          {tpl.title}
+                        </span>
+                        <span className={cn("text-[9px] font-bold px-1.5 py-0.2 rounded-full border shrink-0", tpl.badgeColor)}>
+                          {tpl.badge}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 group-hover:text-slate-600 line-clamp-1">
+                        {tpl.subtitle}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
