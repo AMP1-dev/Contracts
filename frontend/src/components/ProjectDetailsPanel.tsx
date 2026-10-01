@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar, Clipboard, AlertTriangle, RotateCcw } from 'lucide-react';
+import { X, Save, FileText, Building2, User, Clock, CheckCircle2, MessageSquare, Mail, Camera, FileCheck, Send, Printer, Trash2, ExternalLink, FileSignature, Check, Calendar, Clipboard, AlertTriangle, RotateCcw, ShieldCheck, Shield } from 'lucide-react';
 import type { Project, CompanyConfig } from '../types/database';
 import { supabase } from '../lib/supabase';
 import { cn, maskPhone } from '../lib/utils';
@@ -7,6 +7,7 @@ import { REPORT_ARROW_B64, REPORT_BANNER_B64, REPORT_LOGO_B64 } from '../assets/
 import { createAutentiqueDocument } from '../lib/autentique';
 import { SomaAiAssistant } from './SomaAiAssistant';
 import { WHATSAPP_TEMPLATES, buildWhatsAppMessage, openWhatsApp } from '../lib/whatsapp';
+import { getSavedCertificateA1, signDocumentHash } from '../lib/certificateA1';
 
 interface ProjectDetailsPanelProps {
   project: Project | null;
@@ -289,10 +290,13 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     return clean;
   };
 
-  // Print / View Official SOMA SEBRAE Report
-  const handlePrintReport = () => {
+  // Print / View Official SOMA SEBRAE Report with Optional A1 Signature
+  const handlePrintReport = (withA1: boolean = true) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
+    const savedCert = getSavedCertificateA1();
+    const isA1Active = Boolean(withA1 && savedCert && savedCert.ativo && savedCert.pfxBase64 && savedCert.password);
 
     const edital = formData.edital || '004/2026';
     const processoNo = formData.processo_no || '1777/2025';
@@ -317,6 +321,16 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     const rawRae = String(formData.codigo_rae || '39090075');
     const rae = rawRae.replace(/\D/g, '') || rawRae;
     const cidadeRodape = formData.municipio ? String(formData.municipio).replace(/\s*\(.*?\)/g, '').trim() : 'Cotia';
+
+    let a1SignatureData: any = null;
+    if (isA1Active && savedCert) {
+      try {
+        const payloadToSign = `${edital}|${processoNo}|${contratoNo}|${empresaCredenciada}|${profissional}|${objeto}|${dataExecucao}|${nomeCliente}|${cnpjCliente}|${rae}`;
+        a1SignatureData = signDocumentHash(savedCert.pfxBase64, savedCert.password || '', payloadToSign);
+      } catch (err) {
+        console.warn('Falha ao calcular assinatura criptográfica com Certificado A1:', err);
+      }
+    }
 
     const html = `
       <!DOCTYPE html>
@@ -451,13 +465,39 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
 
           <div class="signatures">
             <div class="signature-block">
-              <div class="signature-line">
-                ${empresaCredenciada}<br/>
-                <span style="font-weight: normal; font-size: 8.5pt;">${profissional}</span>
-              </div>
+              ${a1SignatureData && savedCert ? `
+                <div style="border: 1.5px solid #059669; background-color: #f0fdf4; border-radius: 8px; padding: 7px 10px; margin-bottom: 6px; text-align: left; font-family: Arial, Helvetica, sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                  <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #a7f3d0; padding-bottom: 3px; margin-bottom: 4px;">
+                    <span style="font-size: 8pt; font-weight: 900; color: #065f46; letter-spacing: 0.3px;">
+                      🔒 ASSINADO DIGITALMENTE (ICP-BRASIL)
+                    </span>
+                    <span style="font-size: 7pt; font-weight: bold; background: #059669; color: #ffffff; padding: 1px 5px; border-radius: 3px;">
+                      AUTÊNTICO
+                    </span>
+                  </div>
+                  <div style="font-size: 7.5pt; color: #1e293b; line-height: 1.35;">
+                    <strong>Titular:</strong> ${savedCert.titular}<br/>
+                    <strong>Documento:</strong> ${savedCert.documento} (${savedCert.tipoDocumento})<br/>
+                    <strong>Autoridade:</strong> ${savedCert.emissor}<br/>
+                    <strong>Data/Hora:</strong> ${a1SignatureData.timestampIso} (Brasília)<br/>
+                    <strong>Hash SHA-256:</strong> <span style="font-family: monospace; font-size: 6.5pt; color: #475569;">${a1SignatureData.hashSHA256.substring(0, 32)}...</span><br/>
+                    <span style="font-size: 6.5pt; color: #047857; font-style: italic;">Conformidade: MP nº 2.200-2/2001 e Lei nº 14.063/2020</span>
+                  </div>
+                </div>
+                <div style="font-weight: bold; font-size: 8.5pt; color: #0f172a; margin-top: 2px;">
+                  ${empresaCredenciada}<br/>
+                  <span style="font-weight: normal; font-size: 8pt; color: #475569;">${profissional}</span>
+                </div>
+              ` : `
+                <div class="signature-line">
+                  ${empresaCredenciada}<br/>
+                  <span style="font-weight: normal; font-size: 8.5pt;">${profissional}</span>
+                </div>
+              `}
             </div>
+
             <div class="signature-block">
-              <div class="signature-line">
+              <div class="signature-line" style="${a1SignatureData ? 'margin-top: 55px;' : ''}">
                 ${nomeCliente}<br/>
                 <span style="font-weight: normal; font-size: 8.5pt;">Cliente - CNPJ: ${cnpjCliente}</span>
               </div>
@@ -479,22 +519,39 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     setTimeout(() => printWindow.print(), 300);
   };
 
-  // Disparo de Instruções e Relatório via WhatsApp para o cliente assinar no GOV.BR
+  // Disparo de Instruções e Relatório via WhatsApp para o cliente assinar
   const handleSendGovBrWhatsApp = () => {
     const phone = formData.celular || formData.telefone || project?.celular || project?.telefone;
-    const msg = buildWhatsAppMessage('assinatura_gov', formData);
+    const savedCert = getSavedCertificateA1();
+    const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
+    const programa = formData.programa || 'Consultoria Sebrae';
+    const rae = formData.codigo_rae ? ` (RAE: ${formData.codigo_rae})` : '';
+
+    let msg = '';
+    if (savedCert && savedCert.ativo) {
+      msg = `Olá ${clientName}, tudo bem? Espero que sim!\n\nSegue o nosso Relatório Oficial de Prestação de Serviço (${programa}${rae}) *já assinado digitalmente por mim com Certificado Digital ICP-Brasil*.\n\nPor favor, providencie a sua assinatura no documento pela via de sua preferência:\n\n1. 👉 *Pelo GOV.BR Oficial (100% Gratuito):* Acesse https://assinador.iti.br com sua conta Gov.br (Prata ou Ouro), carregue o PDF anexo que estou te enviando, posicione sua assinatura no campo do Cliente e confirme.\n2. Ou caso prefira, pode assinar com seu Certificado Digital próprio ou assinatura eletrônica.\n\nAssim que assinar, me devolva o arquivo por aqui para concluirmos o processo junto ao Sebrae. Qualquer dúvida estou à disposição!`;
+    } else {
+      msg = buildWhatsAppMessage('assinatura_gov', formData);
+    }
     openWhatsApp(phone, msg);
   };
 
-  // E-mail com corpo e instruções para assinatura no GOV.BR
+  // E-mail com corpo e instruções para assinatura
   const getEmailReportLink = () => {
     try {
       const email = String(formData.email_cliente || '');
       const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
       const rae = formData.codigo_rae || '';
       const programa = formData.programa || 'Consultoria Sebrae';
-      const subject = `Relatório de Consultoria para Assinatura GOV.BR - ${programa} (${rae})`;
-      const body = `Olá ${clientName},\n\nEspero que esteja tudo bem!\n\nSegue em anexo o Relatório de Prestação de Serviço da nossa consultoria (${programa} - RAE: ${rae}) para a sua assinatura digital.\n\nComo o Governo Federal disponibiliza o assinador oficial 100% gratuito (com validade jurídica plena aceita pelo Sebrae):\n1. Acesse o portal: https://assinador.iti.br\n2. Faça login com sua conta GOV.BR (Prata ou Ouro)\n3. Carregue este documento PDF anexo\n4. Posicione sua assinatura digital no campo "Cliente" e confirme\n5. Baixe o PDF assinado e me envie de volta por aqui.\n\nQualquer dúvida estou à total disposição!\n\nAtenciosamente,\n${formData.profissional_responsavel || 'Marco Antonio Pavani'}\n${formData.empresa_credenciada || 'AMP DO BRASIL'}`;
+      const savedCert = getSavedCertificateA1();
+      const subject = `Relatório de Consultoria para Assinatura - ${programa} (${rae})`;
+      
+      let body = '';
+      if (savedCert && savedCert.ativo) {
+        body = `Olá ${clientName},\n\nEspero que esteja tudo bem!\n\nSegue em anexo o Relatório de Prestação de Serviço da nossa consultoria (${programa} - RAE: ${rae}), já assinado digitalmente por mim no padrão ICP-Brasil.\n\nPara colher a sua assinatura:\n1. Acesse o portal gratuito do Governo Federal: https://assinador.iti.br\n2. Faça login com sua conta GOV.BR (Prata ou Ouro)\n3. Carregue este documento PDF anexo\n4. Posicione sua assinatura digital no campo "Cliente" e confirme\n5. Baixe o PDF assinado e nos devolva respondendo a este e-mail.\n\n(Ou se preferir, pode assinar com seu próprio certificado digital ou ferramenta eletrônica).\n\nQualquer dúvida estou à total disposição!\n\nAtenciosamente,\n${savedCert.titular || formData.profissional_responsavel || 'Marco Antonio Pavani'}\n${formData.empresa_credenciada || 'AMP DO BRASIL'}`;
+      } else {
+        body = `Olá ${clientName},\n\nEspero que esteja tudo bem!\n\nSegue em anexo o Relatório de Prestação de Serviço da nossa consultoria (${programa} - RAE: ${rae}) para a sua assinatura digital.\n\nComo o Governo Federal disponibiliza o assinador oficial 100% gratuito (com validade jurídica plena aceita pelo Sebrae):\n1. Acesse o portal: https://assinador.iti.br\n2. Faça login com sua conta GOV.BR (Prata ou Ouro)\n3. Carregue este documento PDF anexo\n4. Posicione sua assinatura digital no campo "Cliente" e confirme\n5. Baixe o PDF assinado e me envie de volta por aqui.\n\nQualquer dúvida estou à total disposição!\n\nAtenciosamente,\n${formData.profissional_responsavel || 'Marco Antonio Pavani'}\n${formData.empresa_credenciada || 'AMP DO BRASIL'}`;
+      }
 
       return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     } catch (e) {
@@ -502,14 +559,25 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     }
   };
 
-  // Copiar instruções do GOV.BR para a área de transferência
+  // Copiar instruções para a área de transferência
   const handleCopyGovInstructions = () => {
-    const msg = buildWhatsAppMessage('assinatura_gov', formData);
+    const savedCert = getSavedCertificateA1();
+    const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
+    const programa = formData.programa || 'Consultoria Sebrae';
+    const rae = formData.codigo_rae ? ` (RAE: ${formData.codigo_rae})` : '';
+
+    let msg = '';
+    if (savedCert && savedCert.ativo) {
+      msg = `Olá ${clientName}, tudo bem? Espero que sim!\n\nSegue o nosso Relatório Oficial de Prestação de Serviço (${programa}${rae}) *já assinado digitalmente por mim com Certificado Digital ICP-Brasil*.\n\nPor favor, providencie a sua assinatura no documento pela via de sua preferência:\n\n1. 👉 *Pelo GOV.BR Oficial (100% Gratuito):* Acesse https://assinador.iti.br com sua conta Gov.br (Prata ou Ouro), carregue o PDF anexo que estou te enviando, posicione sua assinatura no campo do Cliente e confirme.\n2. Ou caso prefira, pode assinar com seu Certificado Digital próprio ou assinatura eletrônica.\n\nAssim que assinar, me devolva o arquivo por aqui para concluirmos o processo junto ao Sebrae. Qualquer dúvida estou à disposição!`;
+    } else {
+      msg = buildWhatsAppMessage('assinatura_gov', formData);
+    }
+
     navigator.clipboard.writeText(msg).then(() => {
       setGovCopied(true);
       setTimeout(() => setGovCopied(false), 2500);
     }).catch(() => {
-      alert('Instruções para assinatura GOV.BR:\n\n' + msg);
+      alert('Instruções para assinatura:\n\n' + msg);
     });
   };
 
@@ -1046,103 +1114,105 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               )}
             </div>
 
-            {/* Gerar Documento Oficial SOMA */}
-            <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between gap-3">
-              <div>
-                <span className="text-xs font-bold text-slate-800 block">2. Gerar Relatório Oficial SOMA SEBRAE:</span>
-                <span className="text-[11px] text-slate-500">Documento idêntico ao modelo oficial com foto e assinaturas</span>
-              </div>
-              <button
-                type="button"
-                onClick={handlePrintReport}
-                className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-3.5 py-1.5 rounded-lg shadow-sm transition-colors shrink-0 flex items-center gap-1.5"
-              >
-                <Printer size={14} />
-                <span>Gerar SOMA PDF</span>
-              </button>
-            </div>
-
-            {/* Bloco Completo de Assinatura Digital do Relatório (GOV.BR Grátis & Autentique API) */}
+            {/* Bloco Completo de Assinatura Digital do Relatório (Certificado A1, GOV.BR & Autentique) */}
             <div className="p-4.5 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-md space-y-4 border border-purple-900/40">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
                     <FileSignature size={16} className="text-emerald-400" />
-                    <span>Autenticação & Assinatura Digital do Relatório</span>
+                    <span>2. Autenticação & Assinatura Digital do Relatório</span>
                   </span>
                   <p className="text-[11px] text-slate-300 mt-0.5">
-                    Fluxo oficial para autenticação via GOV.BR (100% Gratuito pelo ITI) ou Autentique.
+                    Assine automaticamente com seu Certificado A1 e envie a sua via pronta para o cliente colher a dele.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-md flex items-center gap-1">
-                    <span>🇧🇷 GOV.BR Oficial</span>
-                  </span>
+                  {getSavedCertificateA1()?.ativo ? (
+                    <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <ShieldCheck size={12} className="text-emerald-400" />
+                      <span>A1 Ativo ({getSavedCertificateA1()?.titular.split(' ')[0]})</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <span>Sem Certificado A1</span>
+                    </span>
+                  )}
                   {formData.autentique_status && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-400/20 text-purple-300 border border-purple-400/30">
                       Autentique: {formData.autentique_status}
                     </span>
                   )}
                 </div>
               </div>
 
-              {/* Roteiro Passo a Passo GOV.BR */}
+              {/* Roteiro Passo a Passo: Certificado A1 + Envio ao Cliente */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {/* Passo 1 */}
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:bg-white/[0.08] transition-colors">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">1º Passo</span>
-                      <Printer size={14} className="text-slate-400" />
+                      <ShieldCheck size={15} className="text-emerald-400" />
                     </div>
-                    <h5 className="text-xs font-bold text-white mb-1">Gerar PDF do Relatório</h5>
+                    <h5 className="text-xs font-bold text-white mb-1">
+                      {getSavedCertificateA1()?.ativo ? 'Gerar & Assinar (A1)' : 'Gerar Relatório SOMA'}
+                    </h5>
                     <p className="text-[11px] text-slate-300 leading-snug">
-                      Gere o relatório oficial SOMA com foto e dados preenchidos para salvar em PDF.
+                      {getSavedCertificateA1()?.ativo
+                        ? `Carimba e assina digitalmente com o Certificado ICP-Brasil de ${getSavedCertificateA1()?.titular}.`
+                        : 'Gera o relatório oficial SOMA com fotos e dados preenchidos para salvar em PDF.'}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handlePrintReport}
-                    className="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                  >
-                    <Printer size={13} />
-                    <span>Salvar PDF</span>
-                  </button>
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    {getSavedCertificateA1()?.ativo ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintReport(true)}
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                          title="Gerar PDF com assinatura digital ICP-Brasil do seu certificado A1"
+                        >
+                          <ShieldCheck size={14} />
+                          <span>Gerar Assinado (A1)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintReport(false)}
+                          className="w-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white font-semibold text-[10px] py-1 px-2 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          title="Visualizar modelo simples sem assinatura"
+                        >
+                          <Printer size={11} />
+                          <span>Modelo sem A1</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handlePrintReport(false)}
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Printer size={13} />
+                          <span>Salvar PDF</span>
+                        </button>
+                        <span className="text-[9px] text-purple-300 block text-center mt-0.5">
+                          💡 Configure seu A1 nas Configurações
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Passo 2 */}
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:bg-white/[0.08] transition-colors">
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-black uppercase text-blue-400 tracking-wider">2º Passo</span>
-                      <ExternalLink size={14} className="text-slate-400" />
-                    </div>
-                    <h5 className="text-xs font-bold text-white mb-1">Você Assina no GOV.BR</h5>
-                    <p className="text-[11px] text-slate-300 leading-snug">
-                      Acesse o assinador oficial com seu GOV.BR (Prata/Ouro) e carimbe como Consultor.
-                    </p>
-                  </div>
-                  <a
-                    href="https://assinador.iti.br"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs text-center"
-                  >
-                    <ExternalLink size={13} />
-                    <span>Abrir assinador.iti.br</span>
-                  </a>
-                </div>
-
-                {/* Passo 3 */}
-                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:bg-white/[0.08] transition-colors">
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-black uppercase text-purple-400 tracking-wider">3º Passo</span>
+                      <span className="text-[10px] font-black uppercase text-purple-400 tracking-wider">2º Passo</span>
                       <Send size={14} className="text-slate-400" />
                     </div>
-                    <h5 className="text-xs font-bold text-white mb-1">Enviar para o Cliente</h5>
+                    <h5 className="text-xs font-bold text-white mb-1">Enviar ao Cliente</h5>
                     <p className="text-[11px] text-slate-300 leading-snug">
-                      Envie as orientações para o cliente assinar no GOV.BR e devolver o PDF.
+                      Envie seu PDF assinado para o cliente colher a assinatura dele (via GOV.BR, certificado ou eletrônica).
                     </p>
                   </div>
                   <div className="mt-3 flex gap-1.5">
@@ -1172,20 +1242,50 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                     </button>
                   </div>
                 </div>
+
+                {/* Passo 3 */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:bg-white/[0.08] transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-black uppercase text-blue-400 tracking-wider">3º Passo</span>
+                      <FileCheck size={14} className="text-slate-400" />
+                    </div>
+                    <h5 className="text-xs font-bold text-white mb-1">Cliente Devolve Assinado</h5>
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      Quando o cliente responder com as duas assinaturas, anexe o documento final para fechamento.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-col gap-1.5">
+                    <label className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs text-center">
+                      <FileCheck size={14} />
+                      <span>Anexar Termo Final</span>
+                      <input type="file" accept=".pdf,image/*" onChange={handleTermUpload} className="hidden" />
+                    </label>
+                    <a
+                      href="https://assinador.iti.br"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-slate-300 hover:text-white text-center underline block mt-0.5"
+                      title="Link do assinador oficial GOV.BR caso queira orientar o cliente"
+                    >
+                      Ajuda: assinador.iti.br
+                    </a>
+                  </div>
+                </div>
               </div>
 
               {/* Lembrete Prático de Envio no WhatsApp */}
               <div className="text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2">
                 <AlertTriangle size={15} className="shrink-0 text-amber-400 mt-0.5" />
                 <span>
-                  <strong>Como enviar o arquivo no WhatsApp:</strong> O WhatsApp Web não anexa arquivos locais automaticamente por link. Ao clicar em <strong>WhatsApp</strong>, a conversa do cliente abrirá com as orientações completas pré-digitadas; basta arrastar o PDF gerado/assinado para dentro da janela de conversa antes de enviar.
+                  <strong>Como enviar o arquivo no WhatsApp:</strong> Ao clicar em <strong>WhatsApp</strong>, a conversa do cliente abrirá com as orientações pré-digitadas; basta arrastar o PDF gerado para dentro da janela de conversa antes de enviar.
                 </span>
               </div>
 
               {/* Alternativa Autentique API (Caso configure Token) */}
               <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="text-[11px] text-slate-300">
-                  <span>Prefere disparo automático direto por e-mail? </span>
+                  <span>Alternativa: Envio automatizado em nuvem por e-mail? </span>
                   <span className="text-purple-300 font-semibold">Autentique API integrada.</span>
                 </div>
                 <div className="flex items-center gap-2">

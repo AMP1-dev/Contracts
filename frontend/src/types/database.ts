@@ -144,5 +144,23 @@ export interface CompanyConfig {
   imapUser?: string;
   imapPass?: string;
   imapUseSSL?: boolean;
+
+  // Certificado Digital A1 (.pfx / .p12) para Assinatura Automática do Consultor
+  certificateA1?: {
+    fileName: string;
+    pfxBase64: string;
+    password?: string;
+    titular: string;
+    documento: string;
+    tipoDocumento: 'CPF' | 'CNPJ' | 'OUTRO';
+    emissor: string;
+    validadeInicio: string;
+    validadeFim: string;
+    isValido: boolean;
+    diasRestantes: number;
+    serialNumber: string;
+    ativo: boolean;
+    dataUpload: string;
+  };
 }
 

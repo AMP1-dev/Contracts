@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import type { CompanyConfig, UserSession } from '../types/database';
-import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server, Send, Bell, FileSignature, CheckCircle2, Calendar, MessageSquare, ExternalLink } from 'lucide-react';
+import { Image, Lock, ShieldCheck, CreditCard, Sparkles, Check, Save, Upload, KeyRound, FileText, Plus, Trash2, Mail, Server, Send, Bell, FileSignature, CheckCircle2, Calendar, MessageSquare, ExternalLink, AlertTriangle, Shield } from 'lucide-react';
 import { sendTelegramNotification } from '../lib/telegram';
 import { testAutentiqueConnection } from '../lib/autentique';
+import { parsePfxCertificate, signDocumentHash, type CertificateA1Info } from '../lib/certificateA1';
 
 interface SettingsPanelProps {
   config: CompanyConfig;
@@ -106,6 +107,94 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
       alert(`✅ ${result.message}`);
     } else {
       alert(`❌ Falha na conexão com o Autentique:\n${result.message || 'Token inválido ou sem permissão.'}`);
+    }
+  };
+
+  // Certificado Digital A1 State
+  const [certA1File, setCertA1File] = useState<File | null>(null);
+  const [certA1Password, setCertA1Password] = useState('');
+  const [certA1Loading, setCertA1Loading] = useState(false);
+  const [certA1Error, setCertA1Error] = useState('');
+  const [certA1Success, setCertA1Success] = useState('');
+  const [isChangingCert, setIsChangingCert] = useState(false);
+  const [currentCertA1, setCurrentCertA1] = useState<CertificateA1Info | null>(
+    (config.certificateA1 as CertificateA1Info) || null
+  );
+
+  const handleUploadCertA1 = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCertA1Error('');
+    setCertA1Success('');
+
+    if (!certA1File) {
+      setCertA1Error('Por favor, selecione um arquivo de certificado (.pfx ou .p12).');
+      return;
+    }
+    if (!certA1Password) {
+      setCertA1Error('Por favor, informe a senha do certificado digital A1.');
+      return;
+    }
+
+    try {
+      setCertA1Loading(true);
+      const buffer = await certA1File.arrayBuffer();
+      const parsedCert = parsePfxCertificate(buffer, certA1Password, certA1File.name);
+
+      const updatedConfig: CompanyConfig = {
+        ...config,
+        certificateA1: parsedCert,
+      };
+
+      onUpdateConfig(updatedConfig);
+      setCurrentCertA1(parsedCert);
+      setIsChangingCert(false);
+      setCertA1Password('');
+      setCertA1File(null);
+      setCertA1Success(`Certificado de ${parsedCert.titular} validado e salvo com sucesso!`);
+      setTimeout(() => setCertA1Success(''), 4500);
+    } catch (err: any) {
+      setCertA1Error(err.message || 'Falha ao processar o certificado digital.');
+    } finally {
+      setCertA1Loading(false);
+    }
+  };
+
+  const handleRemoveCertA1 = () => {
+    if (confirm('Tem certeza que deseja remover o Certificado Digital A1 salvo no sistema?')) {
+      const updatedConfig: CompanyConfig = {
+        ...config,
+        certificateA1: undefined,
+      };
+      onUpdateConfig(updatedConfig);
+      setCurrentCertA1(null);
+      setIsChangingCert(false);
+      setCertA1Success('Certificado digital removido.');
+      setTimeout(() => setCertA1Success(''), 3000);
+    }
+  };
+
+  const handleTestCertSignature = () => {
+    if (!currentCertA1 || !currentCertA1.pfxBase64 || !currentCertA1.password) {
+      alert('Certificado A1 incompleto para teste.');
+      return;
+    }
+    try {
+      const test = signDocumentHash(
+        currentCertA1.pfxBase64,
+        currentCertA1.password,
+        'TESTE_VALIDACAO_SOMA_SEBRAE_' + Date.now()
+      );
+      alert(
+        `✅ Assinatura Criptográfica RSA Testada com Sucesso!\n\n` +
+          `Titular: ${currentCertA1.titular}\n` +
+          `Documento: ${currentCertA1.documento} (${currentCertA1.tipoDocumento})\n` +
+          `Emissor: ${currentCertA1.emissor}\n` +
+          `Hash SHA-256: ${test.hashSHA256}\n` +
+          `Data/Hora: ${test.timestampIso}\n\n` +
+          `O certificado está 100% pronto para assinar seus relatórios automaticamente!`
+      );
+    } catch (e: any) {
+      alert(`❌ Erro no teste de assinatura criptográfica: ${e.message}`);
     }
   };
 
@@ -347,8 +436,8 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <FileSignature size={18} />
-          <span>Assinatura Digital (Autentique & GOV.BR)</span>
+          <ShieldCheck size={18} />
+          <span>Certificado Digital A1 & Assinaturas</span>
         </button>
 
         <button
@@ -1051,9 +1140,185 @@ export function SettingsPanel({ config, onUpdateConfig, currentUser, onChangePas
         {activeTab === 'autentique' && (
           <div className="max-w-3xl space-y-8">
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Assinatura Digital de Documentos SOMA Sebrae</h2>
+              <h2 className="text-lg font-bold text-slate-800">Certificado Digital A1 & Assinatura de Documentos SOMA</h2>
               <p className="text-xs text-slate-500">
-                Configure a integração com o <strong>Autentique</strong> ou utilize o <strong>GOV.BR (100% Gratuito)</strong> para coletar assinaturas dos seus clientes com validade jurídica.
+                Configure seu <strong>Certificado A1 (.pfx)</strong> para assinar relatórios automaticamente pelo motor do sistema e forneça os canais para o cliente assinar a via dele.
+              </p>
+            </div>
+
+            {/* Bloco 1: Certificado Digital A1 do Consultor */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                    <ShieldCheck size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <span>Certificado Digital A1 (.pfx / .p12) — Assinatura Automática</span>
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        ICP-Brasil
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Instale seu e-CPF ou e-CNPJ no sistema para assinar relatórios SOMA em 1 clique sem depender do portal GOV.BR.
+                    </p>
+                  </div>
+                </div>
+
+                {currentCertA1 && !isChangingCert && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                    <span>Certificado Ativo</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Se o certificado já estiver ativo */}
+              {currentCertA1 && !isChangingCert ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50/40 border border-emerald-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                          Titular do Certificado
+                        </span>
+                        <span className="text-xs font-black text-slate-900 block truncate" title={currentCertA1.titular}>
+                          {currentCertA1.titular}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                          {currentCertA1.tipoDocumento}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-800 block">
+                          {currentCertA1.documento}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                          Autoridade Emissora
+                        </span>
+                        <span className="text-xs font-medium text-slate-700 block truncate" title={currentCertA1.emissor}>
+                          {currentCertA1.emissor}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                          Validade ICP-Brasil
+                        </span>
+                        <span className="text-xs font-bold text-emerald-700 block">
+                          Até {currentCertA1.validadeFim} ({currentCertA1.diasRestantes} dias)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleTestCertSignature}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <Sparkles size={14} />
+                      <span>Testar Assinatura Criptográfica RSA</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsChangingCert(true)}
+                      className="bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs px-3.5 py-2 rounded-xl border border-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Upload size={14} />
+                      <span>Substituir Certificado</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCertA1}
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs px-3 py-2 rounded-xl border border-rose-200 transition-colors flex items-center gap-1.5 cursor-pointer ml-auto"
+                    >
+                      <Trash2 size={14} />
+                      <span>Remover</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Formulário de upload do Certificado A1 */
+                <form onSubmit={handleUploadCertA1} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Arquivo do Certificado Digital A1 (.pfx ou .p12)
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pfx,.p12"
+                        onChange={(e) => setCertA1File(e.target.files?.[0] || null)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Certificado A1 emitido por autoridade ICP-Brasil (Soluti, Certisign, Serpro, Valid, etc.)
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Senha do Certificado A1
+                      </label>
+                      <input
+                        type="password"
+                        value={certA1Password}
+                        onChange={(e) => setCertA1Password(e.target.value)}
+                        placeholder="Digite a senha de proteção do arquivo"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all font-mono"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        A senha é necessária para validar a chave privada e assinar os relatórios
+                      </span>
+                    </div>
+                  </div>
+
+                  {certA1Error && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
+                      <AlertTriangle size={15} className="shrink-0 text-rose-600" />
+                      <span>{certA1Error}</span>
+                    </div>
+                  )}
+
+                  {certA1Success && (
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-center gap-2">
+                      <CheckCircle2 size={15} className="shrink-0 text-emerald-600" />
+                      <span>{certA1Success}</span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={certA1Loading || !certA1File || !certA1Password}
+                      className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <ShieldCheck size={16} />
+                      <span>{certA1Loading ? 'Validando Certificado...' : 'Validar e Salvar Certificado A1'}</span>
+                    </button>
+
+                    {isChangingCert && (
+                      <button
+                        type="button"
+                        onClick={() => setIsChangingCert(false)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <div className="pt-2">
+              <h3 className="text-sm font-bold text-slate-800 mb-1">Canais para Coleta da Assinatura do Cliente</h3>
+              <p className="text-xs text-slate-500 mb-4">
+                Após gerar o relatório assinado pelo seu Certificado A1, você pode enviar o documento para o cliente assinar pela via de preferência dele:
               </p>
             </div>
 
