@@ -1,7 +1,7 @@
 import type { Project } from '../types/database';
 
 export interface WhatsAppTemplateOption {
-  id: 'convite' | 'cobranca_1' | 'cobranca_urgente' | 'lembrete' | 'retorno' | 'livre';
+  id: 'convite' | 'cobranca_1' | 'cobranca_urgente' | 'lembrete' | 'retorno' | 'assinatura_gov' | 'livre';
   title: string;
   subtitle: string;
   badge: string;
@@ -51,6 +51,14 @@ export const WHATSAPP_TEMPLATES: WhatsAppTemplateOption[] = [
     iconName: 'RotateCcw',
   },
   {
+    id: 'assinatura_gov',
+    title: 'Assinatura GOV.BR (Envio do Relatório)',
+    subtitle: 'Enviar relatório e instruções para o cliente assinar via GOV.BR',
+    badge: 'Assinatura',
+    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    iconName: 'FileSignature',
+  },
+  {
     id: 'livre',
     title: 'Conversa Livre (Sem Mensagem Pronta)',
     subtitle: 'Abrir o chat do WhatsApp sem texto pré-preenchido',
@@ -90,6 +98,11 @@ export function buildWhatsAppMessage(templateId: WhatsAppTemplateOption['id'], p
 
     case 'retorno':
       return `Olá ${clientName}, tudo bem? Espero que esteja tudo ótimo!\n\nConforme conversamos em nossa consultoria (${programa}), estou entrando em contato para combinarmos nossa etapa de retorno e acompanhamento dos resultados da sua empresa.\n\nComo está sua disponibilidade esta semana para marcarmos esse bate-papo?`;
+
+    case 'assinatura_gov': {
+      const rae = project.codigo_rae ? ` (RAE: ${project.codigo_rae})` : '';
+      return `Olá ${clientName}, tudo bem? Espero que sim!\n\nSegue o nosso Relatório Oficial de Consultoria (${programa}${rae}) para a sua assinatura digital.\n\nComo o Governo Federal disponibiliza o assinador oficial 100% gratuito (com validade jurídica plena), você pode assinar em menos de 1 minuto pelo celular ou computador:\n\n1. Acesse o portal oficial: 👉 https://assinador.iti.br\n2. Faça login com sua conta GOV.BR (Prata ou Ouro)\n3. Carregue o arquivo em PDF que estou anexando aqui na conversa\n4. Posicione sua assinatura digital no campo "Cliente" e confirme\n5. Baixe o PDF assinado e me envie de volta por aqui.\n\nQualquer dúvida estou à total disposição!`;
+    }
 
     default:
       return '';

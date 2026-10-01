@@ -28,6 +28,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSendingAutentique, setIsSendingAutentique] = useState(false);
+  const [govCopied, setGovCopied] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -478,28 +479,43 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
     setTimeout(() => printWindow.print(), 300);
   };
 
-  // Assinatura via GOV.BR (100% Gratuita pelo Assinador ITI oficial)
-  const handleGovBrSignature = () => {
-    // 1. Abre a impressão/download do PDF SOMA
-    handlePrintReport();
+  // Disparo de Instruções e Relatório via WhatsApp para o cliente assinar no GOV.BR
+  const handleSendGovBrWhatsApp = () => {
+    const phone = formData.celular || formData.telefone || project?.celular || project?.telefone;
+    const msg = buildWhatsAppMessage('assinatura_gov', formData);
+    openWhatsApp(phone, msg);
+  };
 
-    // 2. Abre o assinador oficial do Governo Federal em nova aba
-    window.open('https://assinador.iti.br', '_blank');
+  // E-mail com corpo e instruções para assinatura no GOV.BR
+  const getEmailReportLink = () => {
+    try {
+      const email = String(formData.email_cliente || '');
+      const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
+      const rae = formData.codigo_rae || '';
+      const programa = formData.programa || 'Consultoria Sebrae';
+      const subject = `Relatório de Consultoria para Assinatura GOV.BR - ${programa} (${rae})`;
+      const body = `Olá ${clientName},\n\nEspero que esteja tudo bem!\n\nSegue em anexo o Relatório de Prestação de Serviço da nossa consultoria (${programa} - RAE: ${rae}) para a sua assinatura digital.\n\nComo o Governo Federal disponibiliza o assinador oficial 100% gratuito (com validade jurídica plena aceita pelo Sebrae):\n1. Acesse o portal: https://assinador.iti.br\n2. Faça login com sua conta GOV.BR (Prata ou Ouro)\n3. Carregue este documento PDF anexo\n4. Posicione sua assinatura digital no campo "Cliente" e confirme\n5. Baixe o PDF assinado e me envie de volta por aqui.\n\nQualquer dúvida estou à total disposição!\n\nAtenciosamente,\n${formData.profissional_responsavel || 'Marco Antonio Pavani'}\n${formData.empresa_credenciada || 'AMP DO BRASIL'}`;
 
-    // 3. Monta link de WhatsApp opcional com mensagem pronta para o cliente
-    const phone = String(formData.celular || formData.telefone || '').replace(/\D/g, '');
-    const clientName = formData.nome_cliente || formData.razao_social || 'Cliente';
-    const msg = `Olá ${clientName}! Segue o Relatório de Prestação de Serviço Sebrae (RAE ${formData.codigo_rae || ''}) para assinatura gratuita pelo GOV.BR.\n\nVocê pode assinar em 1 minuto pelo celular ou computador através do link oficial:\nhttps://assinador.iti.br\n\nBasta entrar com sua conta Gov.br (Prata ou Ouro), carregar o documento e confirmar a assinatura digital. Qualquer dúvida estou à disposição!`;
-
-    if (phone) {
-      const fullPhone = phone.startsWith('55') ? phone : `55${phone}`;
-      const waUrl = `https://wa.me/${fullPhone}?text=${encodeURIComponent(msg)}`;
-      setTimeout(() => {
-        if (confirm('Deseja abrir o WhatsApp com a mensagem e orientações de assinatura pelo GOV.BR para o cliente?')) {
-          window.open(waUrl, '_blank');
-        }
-      }, 800);
+      return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    } catch (e) {
+      return '#';
     }
+  };
+
+  // Copiar instruções do GOV.BR para a área de transferência
+  const handleCopyGovInstructions = () => {
+    const msg = buildWhatsAppMessage('assinatura_gov', formData);
+    navigator.clipboard.writeText(msg).then(() => {
+      setGovCopied(true);
+      setTimeout(() => setGovCopied(false), 2500);
+    }).catch(() => {
+      alert('Instruções para assinatura GOV.BR:\n\n' + msg);
+    });
+  };
+
+  // Atalho direto para abrir o Assinador GOV.BR oficial
+  const handleOpenGovBr = () => {
+    window.open('https://assinador.iti.br', '_blank');
   };
 
   // Envio Automático para Assinatura via Autentique API
@@ -666,6 +682,7 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
                     {tpl.id === 'cobranca_urgente' && <AlertTriangle size={14} className="text-rose-300 group-hover:text-white" />}
                     {tpl.id === 'lembrete' && <Calendar size={14} className="text-sky-300 group-hover:text-white" />}
                     {tpl.id === 'retorno' && <RotateCcw size={14} className="text-purple-300 group-hover:text-white" />}
+                    {tpl.id === 'assinatura_gov' && <FileSignature size={14} className="text-teal-300 group-hover:text-white" />}
                     {tpl.id === 'livre' && <MessageSquare size={14} className="text-slate-300 group-hover:text-white" />}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -1045,62 +1062,154 @@ export function ProjectDetailsPanel({ project, isOpen, onClose, onUpdate, onDele
               </button>
             </div>
 
-            {/* Assinatura Digital do Cliente (GOV.BR Grátis & Autentique API) */}
-            <div className="p-4 bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl shadow-md space-y-3">
-              <div className="flex items-center justify-between">
+            {/* Bloco Completo de Assinatura Digital do Relatório (GOV.BR Grátis & Autentique API) */}
+            <div className="p-4.5 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-md space-y-4 border border-purple-900/40">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1.5">
-                    <FileSignature size={15} />
-                    <span>Assinatura Digital do Cliente</span>
+                    <FileSignature size={16} className="text-emerald-400" />
+                    <span>Autenticação & Assinatura Digital do Relatório</span>
                   </span>
                   <p className="text-[11px] text-slate-300 mt-0.5">
-                    Envie para o cliente assinar antes de anexar o termo no Sebrae.
+                    Fluxo oficial para autenticação via GOV.BR (100% Gratuito pelo ITI) ou Autentique.
                   </p>
                 </div>
-                {formData.autentique_status && (
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                    Autentique: {formData.autentique_status}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-md flex items-center gap-1">
+                    <span>🇧🇷 GOV.BR Oficial</span>
                   </span>
-                )}
+                  {formData.autentique_status && (
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                      Autentique: {formData.autentique_status}
+                    </span>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                {/* Opção GOV.BR (100% Gratuita) */}
-                <button
-                  type="button"
-                  onClick={handleGovBrSignature}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow flex items-center justify-center gap-1.5 text-center"
-                >
-                  <span>🇧🇷 Assinar via GOV.BR</span>
-                  <span className="text-[10px] bg-emerald-800 px-1.5 py-0.5 rounded-md uppercase font-extrabold tracking-wide">100% Grátis</span>
-                </button>
-
-                {/* Opção Autentique API */}
-                <button
-                  type="button"
-                  onClick={handleAutentiqueSignature}
-                  disabled={isSendingAutentique}
-                  className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow flex items-center justify-center gap-1.5 text-center"
-                >
-                  <FileSignature size={14} />
-                  <span>{isSendingAutentique ? 'Disparando...' : 'Enviar Autentique'}</span>
-                  <span className="text-[10px] bg-purple-800 px-1.5 py-0.5 rounded-md uppercase font-extrabold tracking-wide">API</span>
-                </button>
-              </div>
-
-              {formData.autentique_link && (
-                <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-purple-200">
-                  <span>Link de Assinatura Autentique ativo:</span>
-                  <a
-                    href={formData.autentique_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-purple-300 font-bold hover:underline flex items-center gap-1"
+              {/* Roteiro Passo a Passo GOV.BR */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Passo 1 */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:bg-white/[0.08] transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider">1º Passo</span>
+                      <Printer size={14} className="text-slate-400" />
+                    </div>
+                    <h5 className="text-xs font-bold text-white mb-1">Gerar PDF do Relatório</h5>
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      Gere o relatório oficial SOMA com foto e dados preenchidos para salvar em PDF.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePrintReport}
+                    className="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                   >
-                    Abrir link <ExternalLink size={12} />
+                    <Printer size={13} />
+                    <span>Salvar PDF</span>
+                  </button>
+                </div>
+
+                {/* Passo 2 */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:bg-white/[0.08] transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-black uppercase text-blue-400 tracking-wider">2º Passo</span>
+                      <ExternalLink size={14} className="text-slate-400" />
+                    </div>
+                    <h5 className="text-xs font-bold text-white mb-1">Você Assina no GOV.BR</h5>
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      Acesse o assinador oficial com seu GOV.BR (Prata/Ouro) e carimbe como Consultor.
+                    </p>
+                  </div>
+                  <a
+                    href="https://assinador.iti.br"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 w-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs text-center"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Abrir assinador.iti.br</span>
                   </a>
                 </div>
-              )}
+
+                {/* Passo 3 */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-between hover:bg-white/[0.08] transition-colors">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-black uppercase text-purple-400 tracking-wider">3º Passo</span>
+                      <Send size={14} className="text-slate-400" />
+                    </div>
+                    <h5 className="text-xs font-bold text-white mb-1">Enviar para o Cliente</h5>
+                    <p className="text-[11px] text-slate-300 leading-snug">
+                      Envie as orientações para o cliente assinar no GOV.BR e devolver o PDF.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleSendGovBrWhatsApp}
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-2 rounded-lg flex items-center justify-center gap-1 transition-colors cursor-pointer shadow-xs"
+                      title="Disparar no WhatsApp do cliente com orientações completas"
+                    >
+                      <MessageSquare size={13} />
+                      <span>WhatsApp</span>
+                    </button>
+                    <a
+                      href={getEmailReportLink()}
+                      className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs py-2 px-2.5 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+                      title="Enviar por E-mail"
+                    >
+                      <Mail size={13} />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={handleCopyGovInstructions}
+                      className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs py-2 px-2.5 rounded-lg flex items-center justify-center transition-colors cursor-pointer"
+                      title="Copiar texto explicativo da mensagem"
+                    >
+                      {govCopied ? <Check size={13} className="text-emerald-400" /> : <Clipboard size={13} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lembrete Prático de Envio no WhatsApp */}
+              <div className="text-[11px] text-amber-200/90 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2">
+                <AlertTriangle size={15} className="shrink-0 text-amber-400 mt-0.5" />
+                <span>
+                  <strong>Como enviar o arquivo no WhatsApp:</strong> O WhatsApp Web não anexa arquivos locais automaticamente por link. Ao clicar em <strong>WhatsApp</strong>, a conversa do cliente abrirá com as orientações completas pré-digitadas; basta arrastar o PDF gerado/assinado para dentro da janela de conversa antes de enviar.
+                </span>
+              </div>
+
+              {/* Alternativa Autentique API (Caso configure Token) */}
+              <div className="pt-2 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="text-[11px] text-slate-300">
+                  <span>Prefere disparo automático direto por e-mail? </span>
+                  <span className="text-purple-300 font-semibold">Autentique API integrada.</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAutentiqueSignature}
+                    disabled={isSendingAutentique}
+                    className="bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-white font-bold text-[11px] py-1.5 px-3 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <FileSignature size={13} />
+                    <span>{isSendingAutentique ? 'Disparando...' : 'Disparar via Autentique API'}</span>
+                  </button>
+                  {formData.autentique_link && (
+                    <a
+                      href={formData.autentique_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-purple-300 hover:text-white text-[11px] font-bold underline flex items-center gap-1 ml-1"
+                    >
+                      Ver no Autentique <ExternalLink size={11} />
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Upload Termo Assinado */}
